@@ -1,10 +1,10 @@
 --[[
 =========================================================================
-    NO MERCY HUB V3.5 + FE INVISIBLE (PART REPLACEMENT — NO CFRAME)
-    - Badan asli: Transparency = 1 (tetap di posisi, gak dipindah)
-    - Clone ghost: Transparan 0.5, ikut tiap part asli tiap frame
-    - WASD gerak normal, gak ada teleport, gak ada void
-    - Aimbot + Laser + FOV tetap jalan
+    NO MERCY HUB V3.5 - INVISIBLE TOTAL (SEMUA PART) + HIGHLIGHT
+    - Semua part (termasuk aksesoris) menjadi transparan sesuai slider
+    - Kamu tetap bisa melihat bentuk sendiri (samar) + highlight
+    - Indikator mata di pojok (hijau = aktif)
+    - Aimbot 3 mode, laser, FOV, wallhack, double fire
 =========================================================================
 ]]
 
@@ -18,7 +18,7 @@ local UserInputService    = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 local Camera      = Workspace.CurrentCamera
 
--- ==================== THEME CONFIG ====================
+-- ==================== THEME ====================
 local THEME = {
     Bg       = Color3.fromRGB(12, 12, 18),
     Dark     = Color3.fromRGB(18, 18, 26),
@@ -37,7 +37,7 @@ local TARGET_COLORS = {
     All      = Color3.fromRGB(241, 196, 15),
 }
 
--- ==================== STATE CONFIG ====================
+-- ==================== CONFIG ====================
 local Config = {
     AimbotEnabled = true,
     AimVersion    = "V1",
@@ -46,23 +46,20 @@ local Config = {
     MaxDistance   = 800,
     Prediction    = true,
     AutoShoot     = true,
-    FireDelay     = 0.1,
+    FireDelay     = 0.05,
     LaserEnabled  = true,
     FOVCircleOn   = true,
     FOVRadius     = 180,
+    DoubleFire    = false,
     Invisible     = false,
-    NoClip        = false,
+    InvisibleTransparency = 0.7,  -- tingkat transparansi (0=normal, 1=hilang)
+    Wallhack      = false,
 }
 
 local CurrentTarget = nil
-local LastFireTime  = 0
+local LastFireTime = 0
 
--- ==================== INVISIBLE STATE ====================
-local GhostClone = nil
-local GhostSyncLoop = nil
-local SavedTransparency = {}
-
--- ==================== VISUAL: LASER TRACER ====================
+-- ==================== LASER ====================
 local LaserPart = Instance.new("Part")
 LaserPart.Name = "NM_LaserTracer"
 LaserPart.Anchored = true
@@ -71,9 +68,10 @@ LaserPart.CanQuery = false
 LaserPart.CanTouch = false
 LaserPart.Material = Enum.Material.Neon
 LaserPart.Transparency = 1
+LaserPart.Size = Vector3.new(0.08, 0.08, 0.08)
 LaserPart.Parent = Workspace
 
--- ==================== VISUAL: SCREEN FOV CIRCLE ====================
+-- ==================== FOV CIRCLE ====================
 local guiParent = (gethui and gethui()) or CoreGui or LocalPlayer:WaitForChild("PlayerGui")
 pcall(function() if guiParent:FindFirstChild("NoMercyHubV35") then guiParent.NoMercyHubV35:Destroy() end end)
 
@@ -90,18 +88,70 @@ FOVFrame.Size = UDim2.new(0, Config.FOVRadius * 2, 0, Config.FOVRadius * 2)
 FOVFrame.BackgroundTransparency = 1
 FOVFrame.Visible = Config.FOVCircleOn
 
-Instance.new("UICorner", FOVFrame).CornerRadius = UDim.new(1, 0)
+local UICornerFOV = Instance.new("UICorner", FOVFrame)
+UICornerFOV.CornerRadius = UDim.new(1, 0)
 
 local UIStrokeFOV = Instance.new("UIStroke", FOVFrame)
 UIStrokeFOV.Color = Color3.fromRGB(255, 255, 255)
 UIStrokeFOV.Thickness = 1.8
 UIStrokeFOV.Transparency = 0.2
 
--- ==================== UTILS TARGET & COMBAT ====================
+-- ==================== INVISIBLE INDICATOR (MATA) ====================
+local InvisibleIndicator = Instance.new("TextLabel", ScreenGui)
+InvisibleIndicator.Name = "InvisibleIndicator"
+InvisibleIndicator.Size = UDim2.new(0, 50, 0, 50)
+InvisibleIndicator.Position = UDim2.new(0.95, -55, 0.03, 0)
+InvisibleIndicator.BackgroundTransparency = 1
+InvisibleIndicator.Text = "👁️"
+InvisibleIndicator.TextColor3 = Color3.fromRGB(255, 0, 0)
+InvisibleIndicator.Font = Enum.Font.SourceSansBold
+InvisibleIndicator.TextSize = 35
+InvisibleIndicator.TextScaled = true
+InvisibleIndicator.Visible = true
+
+-- ==================== INVISIBILITY (SEMUA PART) ====================
+local highlight = nil
+
+local function applyInvisible(state, transparency)
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    -- Loop semua part di karakter (termasuk aksesoris, rambut, dll.)
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            -- Set transparansi sesuai state dan nilai slider
+            part.Transparency = state and transparency or 0
+        end
+    end
+
+    -- Highlight agar kita tetap melihat bentuk (outline)
+    if state then
+        if not highlight or not highlight.Parent then
+            highlight = Instance.new("Highlight")
+            highlight.Name = "SelfHighlight"
+            highlight.FillColor = Color3.fromRGB(100, 180, 255)
+            highlight.FillTransparency = 0.6
+            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+            highlight.OutlineTransparency = 0.2
+            highlight.Parent = char
+        end
+        InvisibleIndicator.TextColor3 = Color3.fromRGB(0, 255, 0)
+        InvisibleIndicator.Text = "👁️"
+    else
+        if highlight then highlight:Destroy() end
+        highlight = nil
+        InvisibleIndicator.TextColor3 = Color3.fromRGB(255, 0, 0)
+        InvisibleIndicator.Text = "👁️‍🗨️"
+    end
+end
+
+-- ==================== UTILS ====================
 local function ClassifyTarget(char, plr)
     local n = (char and char.Name or ""):lower()
     local t = (plr and plr.Team and plr.Team.Name or ""):lower()
-    if n:find("kill") or n:find("monster") or n:find("slasher") or n:find("murder") or t:find("kill") then return "Killer" end
+    if n:find("kill") or n:find("monster") or n:find("slasher") or n:find("murder") or t:find("kill") then 
+        return "Killer" 
+    end
     if n:find("zomb") or n:find("infect") then return "Zombie" end
     if plr then return "Survivor" end
     return "Killer"
@@ -121,25 +171,28 @@ local function MatchesFilter(p, char, kind)
     return kind == Config.TargetType
 end
 
+local function IsInFOV(headPos)
+    local screenPos, onScreen = Camera:WorldToViewportPoint(headPos)
+    if not Config.Wallhack and not onScreen then return false end
+    local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+    return dist <= Config.FOVRadius
+end
+
 local function FindBestTarget()
     local origin = Camera.CFrame.Position
     local best, bestScore = nil, math.huge
+    
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and IsAlive(p.Character) then
             local kind = ClassifyTarget(p.Character, p)
             if MatchesFilter(p, p.Character, kind) then
                 local head = p.Character:FindFirstChild("Head")
-                if head then
-                    local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
-                    if onScreen then
-                        local mouseDist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                        if mouseDist <= Config.FOVRadius then
-                            local dist = (head.Position - origin).Magnitude
-                            if dist <= Config.MaxDistance and dist < bestScore then
-                                best = { player = p, char = p.Character, kind = kind, name = p.Name }
-                                bestScore = dist
-                            end
-                        end
+                if head and IsInFOV(head.Position) then
+                    local dist = (head.Position - origin).Magnitude
+                    if dist <= Config.MaxDistance and dist < bestScore then
+                        best = { player = p, char = p.Character, kind = kind, name = p.Name }
+                        bestScore = dist
                     end
                 end
             end
@@ -160,239 +213,77 @@ local function GetPredictPos(char)
     return head.Position
 end
 
-local function GetFireOrigin()
-    local char = LocalPlayer.Character
-    if not char then return Camera.CFrame.Position end
-    local tof = char:FindFirstChild("Twist of Fate")
-    local gun = tof and tof:FindFirstChild("Right Arm") and tof["Right Arm"]:FindFirstChild("EmperorGun")
-    return (gun and gun.Position) or Camera.CFrame.Position
+-- Remote
+local fireRemote = ReplicatedStorage:FindFirstChild("Remotes")
+if fireRemote then
+    fireRemote = fireRemote:FindFirstChild("Items")
+end
+if fireRemote then
+    fireRemote = fireRemote:FindFirstChild("Twist of Fate")
+end
+if fireRemote then
+    fireRemote = fireRemote:FindFirstChild("Fire")
 end
 
 local function FireWeapon(targetPos)
     local now = tick()
     if now - LastFireTime < Config.FireDelay then return end
     LastFireTime = now
+
     local char = LocalPlayer.Character
     if not char then return end
     local tof = char:FindFirstChild("Twist of Fate")
     local gun = tof and tof:FindFirstChild("Right Arm") and tof["Right Arm"]:FindFirstChild("EmperorGun")
-    local remote = ReplicatedStorage:FindFirstChild("Remotes")
-    remote = remote and remote:FindFirstChild("Items")
-    remote = remote and remote:FindFirstChild("Twist of Fate")
-    remote = remote and remote:FindFirstChild("Fire")
-    if gun and remote then
-        local from = GetFireOrigin()
-        local dir = (targetPos - from).Unit
-        pcall(function() remote:FireServer(gun, Vector3.new(dir.X, dir.Y, dir.Z)) end)
-    end
+    if not (gun and fireRemote) then return end
+
+    local from = gun:IsA("BasePart") and gun.Position or Camera.CFrame.Position
+    local dir = (targetPos - from).Unit
+    pcall(function() fireRemote:FireServer(gun, Vector3.new(dir.X, dir.Y, dir.Z)) end)
 end
 
--- ==================== INVISIBLE SYSTEM (PART REPLACEMENT — NO CFRAME MOVE) ====================
-local function HideRealBody(char)
-    SavedTransparency = {}
-    for _, obj in ipairs(char:GetDescendants()) do
-        if obj:IsA("BasePart") or obj:IsA("MeshPart") then
-            SavedTransparency[obj] = obj.Transparency
-            obj.Transparency = 1
-            obj.CastShadow = false
-        elseif obj:IsA("Decal") or obj:IsA("Texture") then
-            SavedTransparency[obj] = obj.Transparency
-            obj.Transparency = 1
-        elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
-            SavedTransparency[obj] = obj.Enabled
-            obj.Enabled = false
-        end
-    end
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-    end
-end
-
-local function ShowRealBody(char)
-    for obj, val in pairs(SavedTransparency) do
-        if obj and obj.Parent then
-            if obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("Decal") or obj:IsA("Texture") then
-                pcall(function() obj.Transparency = val end)
-            elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
-                pcall(function() obj.Enabled = val end)
-            end
-        end
-    end
-    SavedTransparency = {}
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
-    end
-end
-
-local function CreateGhostClone(char)
-    if GhostClone then GhostClone:Destroy() GhostClone = nil end
-    if not char then return end
-
-    local arch = char.Archivable
-    char.Archivable = true
-    GhostClone = char:Clone()
-    char.Archivable = arch
-
-    if not GhostClone then return end
-
-    GhostClone.Name = "GhostBody"
-
-    -- Bersihin clone biar gak conflict
-    for _, obj in ipairs(GhostClone:GetDescendants()) do
-        if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("Humanoid") then
-            obj:Destroy()
-        elseif obj:IsA("BasePart") or obj:IsA("MeshPart") then
-            obj.Transparency = 0.5
-            obj.CanCollide = false
-            obj.Anchored = false      -- Bisa ikut gerak
-            obj.Massless = true       -- Gak ganggu physics
-            obj.CastShadow = false
-        elseif obj:IsA("Decal") or obj:IsA("Texture") then
-            obj.Transparency = 0.5
-        elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") then
-            obj.Enabled = false
-        end
-    end
-
-    -- Hapus accessories yang mungkin ganggu
-    for _, acc in ipairs(GhostClone:GetChildren()) do
-        if acc:IsA("Accessory") then
-            acc:Destroy()
-        end
-    end
-
-    GhostClone.Parent = Workspace
-end
-
-local function DestroyGhostClone()
-    if GhostClone then
-        GhostClone:Destroy()
-        GhostClone = nil
-    end
-end
-
-local function SyncGhostToReal(char)
-    if not GhostClone or not GhostClone.Parent then return end
-    if not char then return end
-
-    -- Sync tiap part berdasarkan nama
-    for _, realPart in ipairs(char:GetDescendants()) do
-        if realPart:IsA("BasePart") then
-            local ghostPart = GhostClone:FindFirstChild(realPart.Name)
-            if ghostPart and ghostPart:IsA("BasePart") then
-                ghostPart.CFrame = realPart.CFrame
-            end
-        end
-    end
-
-    -- Sync accessories (handle)
-    for _, acc in ipairs(char:GetChildren()) do
-        if acc:IsA("Accessory") then
-            local realHandle = acc:FindFirstChild("Handle")
-            local ghostAcc = GhostClone:FindFirstChild(acc.Name)
-            if realHandle and ghostAcc then
-                local ghostHandle = ghostAcc:FindFirstChild("Handle")
-                if ghostHandle and ghostHandle:IsA("BasePart") then
-                    ghostHandle.CFrame = realHandle.CFrame
-                end
-            end
-        end
-    end
-end
-
-local function EnableInvisible()
-    if Config.Invisible then return end
-    local char = LocalPlayer.Character
-    if not char then return end
-
-    Config.Invisible = true
-    HideRealBody(char)
-    CreateGhostClone(char)
-
-    -- Loop tiap frame: sync clone ke badan asli + jaga transparansi
-    GhostSyncLoop = RunService.Heartbeat:Connect(function()
-        if not Config.Invisible then return end
-        local c = LocalPlayer.Character
-        if c then
-            -- Jaga badan asli tetap hidden
-            for _, obj in ipairs(c:GetDescendants()) do
-                if obj:IsA("BasePart") or obj:IsA("MeshPart") then
-                    if obj.Transparency < 1 then
-                        obj.Transparency = 1
-                    end
-                elseif obj:IsA("Decal") or obj:IsA("Texture") then
-                    if obj.Transparency < 1 then
-                        obj.Transparency = 1
-                    end
-                end
-            end
-            -- Sync ghost
-            SyncGhostToReal(c)
-        end
-    end)
-end
-
-local function DisableInvisible()
-    if not Config.Invisible then return end
-    Config.Invisible = false
-    if GhostSyncLoop then
-        GhostSyncLoop:Disconnect()
-        GhostSyncLoop = nil
-    end
-    DestroyGhostClone()
-    ShowRealBody(LocalPlayer.Character)
-end
-
--- ==================== NOCLIP SYSTEM ====================
-local NoclipConnection = nil
-
-local function SetCharacterCollision(on)
-    local char = LocalPlayer.Character
-    if not char then return end
-    for _, part in ipairs(char:GetDescendants()) do
-        if part:IsA("BasePart") or part:IsA("MeshPart") then
-            part.CanCollide = on
-        end
-    end
-end
-
-local function StartNoclip()
-    if Config.NoClip then return end
-    Config.NoClip = true
-    if NoclipConnection then NoclipConnection:Disconnect() end
-    NoclipConnection = RunService.Stepped:Connect(function()
-        SetCharacterCollision(false)
-    end)
-end
-
-local function StopNoclip()
-    if not Config.NoClip then return end
-    Config.NoClip = false
-    if NoclipConnection then NoclipConnection:Disconnect() NoclipConnection = nil end
-    SetCharacterCollision(true)
-end
-
--- ==================== MAIN AIMBOT LOOP ====================
+-- ==================== MAIN LOOP ====================
 RunService.RenderStepped:Connect(function()
+    -- Update FOV
     FOVFrame.Visible = Config.FOVCircleOn
     FOVFrame.Size = UDim2.new(0, Config.FOVRadius * 2, 0, Config.FOVRadius * 2)
 
+    -- Invisibility (semua part, dengan slider transparency)
+    if Config.Invisible then
+        applyInvisible(true, Config.InvisibleTransparency)
+    else
+        applyInvisible(false, 0)
+    end
+
+    -- Aimbot
     if not Config.AimbotEnabled then
         LaserPart.Transparency = 1
         return
     end
 
-    if not (CurrentTarget and IsAlive(CurrentTarget.char) and MatchesFilter(CurrentTarget.player, CurrentTarget.char, CurrentTarget.kind)) then
+    -- Cek target
+    if CurrentTarget then
+        local head = CurrentTarget.char:FindFirstChild("Head")
+        local origin = Camera.CFrame.Position
+        local dist = head and (head.Position - origin).Magnitude or math.huge
+        local inFOV = head and IsInFOV(head.Position) or false
+        if not (IsAlive(CurrentTarget.char) and inFOV and dist <= Config.MaxDistance and MatchesFilter(CurrentTarget.player, CurrentTarget.char, CurrentTarget.kind)) then
+            CurrentTarget = nil
+        end
+    end
+
+    if not CurrentTarget then
         CurrentTarget = FindBestTarget()
     end
 
     if CurrentTarget then
         local pos = GetPredictPos(CurrentTarget.char)
         if pos then
+            -- Laser
             if Config.LaserEnabled then
-                local from = GetFireOrigin()
+                local gun = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Twist of Fate")
+                gun = gun and gun:FindFirstChild("Right Arm") and gun["Right Arm"]:FindFirstChild("EmperorGun")
+                local from = (gun and gun.Position) or Camera.CFrame.Position
+                
                 LaserPart.Transparency = 0.25
                 LaserPart.Color = TARGET_COLORS[CurrentTarget.kind] or THEME.White
                 LaserPart.CFrame = CFrame.lookAt(from, pos) * CFrame.new(0, 0, -(pos - from).Magnitude / 2)
@@ -401,20 +292,24 @@ RunService.RenderStepped:Connect(function()
                 LaserPart.Transparency = 1
             end
 
+            -- Mode V2: Camera Lock
             if Config.AimVersion == "V2" then
                 Camera.CFrame = CFrame.new(Camera.CFrame.Position, pos)
             end
 
+            -- Auto shoot
             if Config.AutoShoot then
                 FireWeapon(pos)
             end
+        else
+            LaserPart.Transparency = 1
         end
     else
         LaserPart.Transparency = 1
     end
 end)
 
--- ==================== MODULAR UI INTERFACE ====================
+-- ==================== UI ====================
 local Bubble = Instance.new("ImageButton", ScreenGui)
 Bubble.Size = UDim2.new(0, 55, 0, 55)
 Bubble.Position = UDim2.new(0, 15, 0.25, 0)
@@ -425,8 +320,8 @@ Bubble.Draggable = true
 Instance.new("UICorner", Bubble).CornerRadius = UDim.new(1, 0)
 
 local Window = Instance.new("Frame", ScreenGui)
-Window.Size = UDim2.new(0, 500, 0, 380)
-Window.Position = UDim2.new(0.5, -250, 0.5, -190)
+Window.Size = UDim2.new(0, 500, 0, 550)
+Window.Position = UDim2.new(0.5, -250, 0.5, -275)
 Window.BackgroundColor3 = THEME.Bg
 Window.Active = true
 Window.Draggable = true
@@ -434,6 +329,7 @@ Instance.new("UICorner", Window).CornerRadius = UDim.new(0, 12)
 
 Bubble.MouseButton1Click:Connect(function() Window.Visible = not Window.Visible end)
 
+-- Header
 local Header = Instance.new("Frame", Window)
 Header.Size = UDim2.new(1, 0, 0, 40)
 Header.BackgroundColor3 = THEME.Dark
@@ -443,7 +339,7 @@ local Title = Instance.new("TextLabel", Header)
 Title.Size = UDim2.new(1, -50, 1, 0)
 Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "NO MERCY HUB V3.5 — PART REPLACEMENT"
+Title.Text = "NO MERCY HUB — INVISIBLE TOTAL"
 Title.TextColor3 = THEME.White
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 13
@@ -459,6 +355,7 @@ CloseBtn.Font = Enum.Font.GothamBold
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
 CloseBtn.MouseButton1Click:Connect(function() Window.Visible = false end)
 
+-- Sidebar
 local Sidebar = Instance.new("ScrollingFrame", Window)
 Sidebar.Size = UDim2.new(0, 130, 1, -50)
 Sidebar.Position = UDim2.new(0, 10, 0, 45)
@@ -474,6 +371,7 @@ Container.Position = UDim2.new(0, 145, 0, 45)
 Container.BackgroundColor3 = THEME.Panel
 Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 8)
 
+-- Tabs
 local Tabs = {}
 local function CreateTab(name)
     local TabBtn = Instance.new("TextButton", Sidebar)
@@ -492,6 +390,7 @@ local function CreateTab(name)
     Page.ScrollBarThickness = 3
     Page.AutomaticCanvasSize = Enum.AutomaticSize.Y
     Page.Visible = false
+    
     local pageLayout = Instance.new("UIListLayout", Page)
     pageLayout.Padding = UDim.new(0, 8)
 
@@ -504,14 +403,12 @@ local function CreateTab(name)
     return Page
 end
 
-local AimTab    = CreateTab("Aimbot Setup")
+local AimTab = CreateTab("Aimbot Setup")
 local VisualTab = CreateTab("Visuals & Laser")
-local InvTab    = CreateTab("Invisible")
-local NoclipTab = CreateTab("NoClip")
-
 Tabs["Aimbot Setup"].Page.Visible = true
 Tabs["Aimbot Setup"].Btn.TextColor3 = THEME.White
 
+-- ==================== UI HELPERS ====================
 local function AddToggle(parent, text, default, callback)
     local holder = Instance.new("Frame", parent)
     holder.Size = UDim2.new(1, 0, 0, 32)
@@ -544,12 +441,135 @@ local function AddToggle(parent, text, default, callback)
     end)
 end
 
--- ==================== AIMBOT TAB CONTENT ====================
+local function AddSlider(parent, text, min, max, default, callback)
+    local holder = Instance.new("Frame", parent)
+    holder.Size = UDim2.new(1, 0, 0, 40)
+    holder.BackgroundColor3 = THEME.Dark
+    Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 6)
+
+    local lbl = Instance.new("TextLabel", holder)
+    lbl.Size = UDim2.new(1, -10, 0, 18)
+    lbl.Position = UDim2.new(0, 5, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = text .. " (" .. string.format("%.1f", default) .. ")"
+    lbl.TextColor3 = THEME.White
+    lbl.Font = Enum.Font.GothamMedium
+    lbl.TextSize = 11
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+    local slider = Instance.new("Frame", holder)
+    slider.Size = UDim2.new(1, -20, 0, 12)
+    slider.Position = UDim2.new(0, 10, 0, 22)
+    slider.BackgroundColor3 = THEME.Panel
+    Instance.new("UICorner", slider).CornerRadius = UDim.new(1, 0)
+
+    local fill = Instance.new("Frame", slider)
+    fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    fill.BackgroundColor3 = THEME.Accent
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+    local dragging = false
+    local function update(input)
+        local posX = input.Position.X
+        local rel = math.clamp((posX - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+        local val = min + rel * (max - min)
+        val = math.round(val * 10) / 10  -- 1 desimal
+        fill.Size = UDim2.new(rel, 0, 1, 0)
+        lbl.Text = text .. " (" .. string.format("%.1f", val) .. ")"
+        callback(val)
+    end
+
+    slider.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            update(input)
+        end
+    end)
+    slider.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            update(input)
+        end
+    end)
+end
+
+local function AddTextBox(parent, labelText, default, callback, buttonText)
+    local holder = Instance.new("Frame", parent)
+    holder.Size = UDim2.new(1, 0, 0, 36)
+    holder.BackgroundColor3 = THEME.Dark
+    Instance.new("UICorner", holder).CornerRadius = UDim.new(0, 6)
+
+    local lbl = Instance.new("TextLabel", holder)
+    lbl.Size = UDim2.new(0.5, -10, 1, 0)
+    lbl.Position = UDim2.new(0, 5, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = labelText
+    lbl.TextColor3 = THEME.White
+    lbl.Font = Enum.Font.GothamMedium
+    lbl.TextSize = 11
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+
+    local box = Instance.new("TextBox", holder)
+    box.Size = UDim2.new(0.25, 0, 0, 22)
+    box.Position = UDim2.new(0.52, 0, 0.5, -11)
+    box.BackgroundColor3 = THEME.Panel
+    box.Text = tostring(default)
+    box.TextColor3 = THEME.White
+    box.Font = Enum.Font.GothamMedium
+    box.TextSize = 11
+    box.ClearTextOnFocus = false
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 4)
+
+    local btn = Instance.new("TextButton", holder)
+    btn.Size = UDim2.new(0.18, 0, 0, 24)
+    btn.Position = UDim2.new(0.8, 0, 0.5, -12)
+    btn.BackgroundColor3 = THEME.Accent
+    btn.Text = buttonText or "Set"
+    btn.TextColor3 = THEME.White
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 10
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+
+    btn.MouseButton1Click:Connect(function()
+        local val = tonumber(box.Text)
+        if val then
+            callback(val)
+            box.Text = tostring(val)
+        end
+    end)
+    box.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            local val = tonumber(box.Text)
+            if val then
+                callback(val)
+                box.Text = tostring(val)
+            end
+        end
+    end)
+end
+
+-- ==================== AIMBOT TAB ====================
 AddToggle(AimTab, "Enable Aim Lock", Config.AimbotEnabled, function(v) Config.AimbotEnabled = v end)
 AddToggle(AimTab, "Auto Shoot Target", Config.AutoShoot, function(v) Config.AutoShoot = v end)
+AddToggle(AimTab, "Double Fire (Extra Silent Shot)", Config.DoubleFire, function(v) Config.DoubleFire = v end)
+AddToggle(AimTab, "Invisible Mode (semua part)", Config.Invisible, function(v) Config.Invisible = v end)
+AddToggle(AimTab, "Wallhack (tembus tembok)", Config.Wallhack, function(v) Config.Wallhack = v end)
 
+-- Slider transparansi invisible
+AddSlider(AimTab, "Tingkat Transparansi (0=normal, 1=hilang)", 0, 1, Config.InvisibleTransparency, function(val)
+    Config.InvisibleTransparency = val
+    if Config.Invisible then
+        applyInvisible(true, val)  -- langsung terapkan
+    end
+end)
+
+-- Mode selection
 local verFrame = Instance.new("Frame", AimTab)
-verFrame.Size = UDim2.new(1, 0, 0, 50)
+verFrame.Size = UDim2.new(1, 0, 0, 56)
 verFrame.BackgroundColor3 = THEME.Dark
 Instance.new("UICorner", verFrame).CornerRadius = UDim.new(0, 6)
 
@@ -557,44 +577,45 @@ local verLbl = Instance.new("TextLabel", verFrame)
 verLbl.Size = UDim2.new(1, -10, 0, 16)
 verLbl.Position = UDim2.new(0, 8, 0, 2)
 verLbl.BackgroundTransparency = 1
-verLbl.Text = "Mode Aimbot (Klik V1 / V2):"
+verLbl.Text = "Pilih Mode Aimbot:"
 verLbl.TextColor3 = THEME.TextDim
 verLbl.Font = Enum.Font.GothamMedium
 verLbl.TextSize = 10
 verLbl.TextXAlignment = Enum.TextXAlignment.Left
 
-local btnV1 = Instance.new("TextButton", verFrame)
-btnV1.Size = UDim2.new(0.48, 0, 0, 24)
-btnV1.Position = UDim2.new(0, 5, 0, 22)
+local function createModeButton(parent, text, xPos, width)
+    local btn = Instance.new("TextButton", parent)
+    btn.Size = UDim2.new(width, 0, 0, 24)
+    btn.Position = UDim2.new(xPos, 0, 0, 22)
+    btn.Text = text
+    btn.TextColor3 = THEME.White
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 10
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+    return btn
+end
+
+local btnV1 = createModeButton(verFrame, "V1 (Free Coord)", 0.02, 0.30)
+local btnV2 = createModeButton(verFrame, "V2 (Cam Lock)", 0.35, 0.30)
+local btnV3 = createModeButton(verFrame, "V3 (Silent + Double)", 0.68, 0.30)
+
 btnV1.BackgroundColor3 = THEME.Green
-btnV1.Text = "V1 (Free Coord)"
-btnV1.TextColor3 = THEME.White
-btnV1.Font = Enum.Font.GothamBold
-btnV1.TextSize = 10
-Instance.new("UICorner", btnV1).CornerRadius = UDim.new(0, 4)
-
-local btnV2 = Instance.new("TextButton", verFrame)
-btnV2.Size = UDim2.new(0.48, 0, 0, 24)
-btnV2.Position = UDim2.new(0.52, -2, 0, 22)
 btnV2.BackgroundColor3 = THEME.Panel
-btnV2.Text = "V2 (Cam Lock)"
-btnV2.TextColor3 = THEME.TextDim
-btnV2.Font = Enum.Font.GothamBold
-btnV2.TextSize = 10
-Instance.new("UICorner", btnV2).CornerRadius = UDim.new(0, 4)
+btnV3.BackgroundColor3 = THEME.Panel
 
-btnV1.MouseButton1Click:Connect(function()
-    Config.AimVersion = "V1"
-    btnV1.BackgroundColor3 = THEME.Green; btnV1.TextColor3 = THEME.White
-    btnV2.BackgroundColor3 = THEME.Panel; btnV2.TextColor3 = THEME.TextDim
-end)
+local function setMode(mode)
+    Config.AimVersion = mode
+    if mode == "V3" then Config.DoubleFire = true end
+    btnV1.BackgroundColor3 = (mode == "V1") and THEME.Green or THEME.Panel
+    btnV2.BackgroundColor3 = (mode == "V2") and THEME.Green or THEME.Panel
+    btnV3.BackgroundColor3 = (mode == "V3") and THEME.Green or THEME.Panel
+end
 
-btnV2.MouseButton1Click:Connect(function()
-    Config.AimVersion = "V2"
-    btnV2.BackgroundColor3 = THEME.Green; btnV2.TextColor3 = THEME.White
-    btnV1.BackgroundColor3 = THEME.Panel; btnV1.TextColor3 = THEME.TextDim
-end)
+btnV1.MouseButton1Click:Connect(function() setMode("V1") end)
+btnV2.MouseButton1Click:Connect(function() setMode("V2") end)
+btnV3.MouseButton1Click:Connect(function() setMode("V3") end)
 
+-- Target type
 local targetTypeLbl = Instance.new("TextLabel", AimTab)
 targetTypeLbl.Size = UDim2.new(1, 0, 0, 18)
 targetTypeLbl.BackgroundTransparency = 1
@@ -652,6 +673,7 @@ for _, tName in ipairs({"Killer", "Survivor", "Zombie"}) do
     tBtn.Font = Enum.Font.GothamBold
     tBtn.TextSize = 10
     Instance.new("UICorner", tBtn).CornerRadius = UDim.new(0, 6)
+    
     tBtn.MouseButton1Click:Connect(function()
         Config.TargetType = tName
         CurrentTarget = nil
@@ -665,75 +687,56 @@ for _, tName in ipairs({"Killer", "Survivor", "Zombie"}) do
     end)
 end
 
--- ==================== VISUAL TAB CONTENT ====================
+-- ==================== VISUAL TAB ====================
 AddToggle(VisualTab, "Laser Tracer ON/OFF", Config.LaserEnabled, function(v) Config.LaserEnabled = v end)
 AddToggle(VisualTab, "FOV Circle ON/OFF", Config.FOVCircleOn, function(v) Config.FOVCircleOn = v end)
 
--- ==================== INVISIBLE TAB CONTENT ====================
-AddToggle(InvTab, "FE Invisible (Part Replace)", false, function(v)
-    if v then EnableInvisible() else DisableInvisible() end
+AddSlider(VisualTab, "FOV Radius (slider)", 50, 400, Config.FOVRadius, function(val)
+    Config.FOVRadius = val
+    FOVFrame.Size = UDim2.new(0, val * 2, 0, val * 2)
 end)
 
-local invHint = Instance.new("TextLabel", InvTab)
-invHint.Size = UDim2.new(1, 0, 0, 80)
-invHint.BackgroundTransparency = 1
-invHint.Text = "Real body hidden (Transparency=1), stays in place.\nGhost clone (50% visible) follows each part.\nNO CFrame teleport. NO void. Normal WASD movement.\nHotkey: G"
-invHint.TextColor3 = THEME.TextDim
-invHint.TextSize = 10
-invHint.Font = Enum.Font.Gotham
-invHint.TextWrapped = true
-invHint.TextXAlignment = Enum.TextXAlignment.Left
+AddTextBox(VisualTab, "FOV Radius (manual)", Config.FOVRadius, function(val)
+    Config.FOVRadius = val
+    FOVFrame.Size = UDim2.new(0, val * 2, 0, val * 2)
+    print("FOV Radius set to " .. val)
+end, "Apply")
 
--- ==================== NOCLIP TAB CONTENT ====================
-AddToggle(NoclipTab, "NoClip (Walk Thru Walls)", false, function(v)
-    if v then StartNoclip() else StopNoclip() end
-end)
+print("✅ NO MERCY HUB - INVISIBLE TOTAL + SLIDER TRANSPARANSI Loaded!")
+print("👁️ Indikator mata: hijau = invisible aktif, merah = mati")
+print("🎚️ Atur tingkat transparansi di Aimbot Setup -> Tingkat Transparansi")
 
-local noclipHint = Instance.new("TextLabel", NoclipTab)
-noclipHint.Size = UDim2.new(1, 0, 0, 30)
-noclipHint.BackgroundTransparency = 1
-noclipHint.Text = "Disables collision on all character parts.\nWorks in both visible and invisible mode."
-noclipHint.TextColor3 = THEME.TextDim
-noclipHint.TextSize = 10
-noclipHint.Font = Enum.Font.Gotham
-noclipHint.TextWrapped = true
-noclipHint.TextXAlignment = Enum.TextXAlignment.Left
-
--- ==================== HOTKEY G ====================
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
-    if input.KeyCode == Enum.KeyCode.G then
-        if Config.Invisible then
-            DisableInvisible()
-        else
-            EnableInvisible()
-        end
-        -- Update UI dot
-        for _, tab in pairs(Tabs) do
-            for _, child in ipairs(tab.Page:GetChildren()) do
-                if child:IsA("Frame") and child:FindFirstChild("TextLabel") and child.TextLabel.Text == "FE Invisible (Part Replace)" then
-                    for _, dot in ipairs(child:GetChildren()) do
-                        if dot:IsA("Frame") and dot.Size.X.Offset == 28 then
-                            dot.BackgroundColor3 = Config.Invisible and THEME.Green or Color3.fromRGB(60, 60, 75)
+-- ==================== DOUBLE FIRE HOOK ====================
+local isFiring = false
+if fireRemote and hookmetamethod and getnamecallmethod then
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+        if Config.DoubleFire and method == "FireServer" and self == fireRemote and not isFiring then
+            isFiring = true
+            task.spawn(function()
+                if CurrentTarget and IsAlive(CurrentTarget.char) then
+                    local head = CurrentTarget.char:FindFirstChild("Head")
+                    if head then
+                        local targetPos = head.Position
+                        local char = LocalPlayer.Character
+                        if char and char:FindFirstChild("Head") then
+                            local tool = char:FindFirstChild("Twist of Fate")
+                            if tool and tool:FindFirstChild("Right Arm") and tool["Right Arm"]:FindFirstChild("EmperorGun") then
+                                local gun = tool["Right Arm"]["EmperorGun"]
+                                local from = gun.Position
+                                local dir = (targetPos - from).Unit
+                                pcall(function() fireRemote:FireServer(gun, Vector3.new(dir.X, dir.Y, dir.Z)) end)
+                            end
                         end
                     end
                 end
-            end
+                task.wait(0.1)
+                isFiring = false
+            end)
         end
-    end
-end)
-
--- ==================== CHARACTER EVENTS ====================
-LocalPlayer.CharacterAdded:Connect(function(char)
-    task.wait(1)
-    if Config.Invisible then
-        task.wait(0.3)
-        HideRealBody(char)
-        CreateGhostClone(char)
-    end
-    if Config.NoClip then
-        StartNoclip()
-    end
-end)
-
-print("✅ NO MERCY HUB V3.5 — Part Replacement Invisible Loaded!")
+        return oldNamecall(self, unpack(args))
+    end)
+    print("✅ Double Fire active.")
+end
