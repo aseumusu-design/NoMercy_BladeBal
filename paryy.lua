@@ -1,296 +1,219 @@
 --[[
 =========================================================================
-    NO MERCY HUB - INVISIBLE TOTAL (SERVER-SIDE + CLIENT-SIDE FALLBACK)
-    - Mencari remote invisibility di ReplicatedStorage
-    - Jika ditemukan, kirim ke server (semua pemain melihatmu invisible)
-    - Jika tidak, fallback ke client-side (hanya kamu yang melihat efek)
-    - Client-side: tubuh ditutupi balok transparan (efek "menghilang")
+    REMOTE SCANNER + COPY (Mencari semua RemoteEvent/RemoteFunction)
+    - Scan ReplicatedStorage, Workspace, Lighting, ServerScriptService, etc.
+    - Tampilkan daftar di UI dengan tombol copy per remote
 =========================================================================
 ]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local ServerScriptService = game:GetService("ServerScriptService")
+local ServerStorage = game:GetService("ServerStorage")
+local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
 
-local Config = {
-    Invisible = false,
-    RemoteFound = false,
-    RemoteObject = nil,
-    Block = nil,
-}
-
--- ==================== CARI REMOTE ====================
-
-local function FindRemoteInObject(obj, keywords)
-    for _, child in ipairs(obj:GetChildren()) do
-        if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
-            for _, kw in ipairs(keywords) do
-                if string.lower(child.Name):find(kw) then
-                    return child
-                end
+local function getAllRemotes()
+    local remotes = {}
+    local function scan(obj, path)
+        for _, child in ipairs(obj:GetChildren()) do
+            if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
+                table.insert(remotes, {
+                    Name = child.Name,
+                    Class = child.ClassName,
+                    Path = path .. "." .. child.Name,
+                    Ref = child
+                })
+            end
+            if child:IsA("Instance") then
+                scan(child, path .. "." .. child.Name)
             end
         end
-        local found = FindRemoteInObject(child, keywords)
-        if found then return found end
     end
-    return nil
+    scan(ReplicatedStorage, "ReplicatedStorage")
+    scan(Workspace, "Workspace")
+    scan(Lighting, "Lighting")
+    scan(ServerScriptService, "ServerScriptService")
+    scan(ServerStorage, "ServerStorage")
+    -- CoreGui mungkin tidak perlu, tapi kita tambahkan
+    scan(CoreGui, "CoreGui")
+    return remotes
 end
 
-local function FindInvisibleRemote()
-    local keywords = {
-        "invis", "ghost", "stealth", "hide", "transparent",
-        "camouflage", "cloak", "vanish", "disappear"
-    }
-    return FindRemoteInObject(ReplicatedStorage, keywords)
-end
-
--- ==================== FUNGSI UTAMA ====================
-
--- Client-side fallback: buat balok penutup tubuh
-local function CreateBlock()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
-    -- Hapus block sebelumnya jika ada
-    if Config.Block then
-        Config.Block:Destroy()
-        Config.Block = nil
-    end
-
-    -- Buat balok besar yang menutupi seluruh tubuh
-    local block = Instance.new("Part")
-    block.Name = "InvisibleBlock"
-    block.Size = Vector3.new(6, 6, 6)
-    block.Shape = Enum.PartType.Block
-    block.Anchored = true
-    block.CanCollide = false
-    block.Transparency = 1
-    block.Material = Enum.Material.SmoothPlastic
-    block.Parent = Workspace
-
-    -- Warna mengikuti warna tubuh (atau putih)
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if hum and hum.RigType == Enum.HumanoidRigType.R6 then
-        block.Size = Vector3.new(4, 4, 4)
+local function copyToClipboard(text)
+    local clipboard = setclipboard or toclipboard or function() end
+    if clipboard then
+        clipboard(text)
+        return true
     else
-        block.Size = Vector3.new(6, 6, 6)
-    end
-
-    Config.Block = block
-    print("✅ Balok penutup dibuat.")
-end
-
-local function UpdateBlockPosition()
-    if not Config.Block then return end
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-    Config.Block.CFrame = CFrame.new(hrp.Position)
-end
-
-local function DestroyBlock()
-    if Config.Block then
-        Config.Block:Destroy()
-        Config.Block = nil
+        return false
     end
 end
 
--- Kirim remote ke server
-local function SendRemote(state)
-    if not Config.RemoteObject then return false end
-    local success = pcall(function()
-        if Config.RemoteObject:IsA("RemoteEvent") then
-            Config.RemoteObject:FireServer(state)
-        elseif Config.RemoteObject:IsA("RemoteFunction") then
-            Config.RemoteObject:InvokeServer(state)
-        end
-    end)
-    return success
-end
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "RemoteScanner"
+gui.ResetOnSpawn = false
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- Toggle invisible
-local function ToggleInvisible()
-    Config.Invisible = not Config.Invisible
-    local state = Config.Invisible
-
-    if Config.RemoteFound then
-        local success = SendRemote(state)
-        if success then
-            print("✅ Invisible server-side berhasil dikirim.")
-            -- Jika berhasil, kita juga bisa kasih efek client-side (block) untuk sendiri
-            if state then
-                CreateBlock()
-                UpdateBlockPosition()
-            else
-                DestroyBlock()
-            end
-            return
-        else
-            print("⚠️ Gagal mengirim remote, fallback ke client-side.")
-        end
-    end
-
-    -- Fallback client-side
-    if state then
-        CreateBlock()
-        UpdateBlockPosition()
-        -- Set transparansi block menjadi 1 (hilang), tapi tubuh asli tetap ada di dalam
-        if Config.Block then
-            Config.Block.Transparency = 1
-        end
-        -- Buat tubuh asli transparan juga (supaya tidak terlihat dari dalam)
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.Transparency = 1
-                end
-            end
-        end
-    else
-        DestroyBlock()
-        local char = LocalPlayer.Character
-        if char then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.Transparency = 0
-                end
-            end
-        end
-    end
-    print("Invisible client-side: " .. tostring(state))
-end
-
--- ==================== LOOP UPDATE POSISI BLOCK ====================
-
-RunService.RenderStepped:Connect(function()
-    if Config.Invisible and Config.Block then
-        UpdateBlockPosition()
-    end
-end)
-
--- ==================== GUI ====================
-
-local gui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-
--- Frame utama
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 300, 0, 180)
-frame.Position = UDim2.new(0.5, -150, 0.3, 0)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
-frame.Active = true
-frame.Draggable = true
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 500, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -250, 0.3, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+mainFrame.BackgroundTransparency = 0.9
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = gui
 
 -- Title
-local title = Instance.new("TextLabel", frame)
+local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, 0, 0, 30)
 title.BackgroundTransparency = 1
-title.Text = "🔍 Invisibility Controller"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Text = "🔍 Remote Scanner"
+title.TextColor3 = Color3.fromRGB(255,255,255)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 14
+title.Parent = mainFrame
 
--- Toggle button
-local btn = Instance.new("TextButton", frame)
-btn.Size = UDim2.new(0.9, 0, 0, 40)
-btn.Position = UDim2.new(0.05, 0, 0.22, 0)
-btn.Text = "INVISIBLE OFF"
-btn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-btn.Font = Enum.Font.GothamBold
-btn.TextSize = 14
-Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+-- Close button
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -35, 0, 2)
+closeBtn.Text = "✕"
+closeBtn.BackgroundTransparency = 1
+closeBtn.TextColor3 = Color3.fromRGB(255,0,0)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 14
+closeBtn.Parent = mainFrame
+closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
 
--- Status remote
-local statusLabel = Instance.new("TextLabel", frame)
-statusLabel.Size = UDim2.new(0.9, 0, 0, 25)
-statusLabel.Position = UDim2.new(0.05, 0, 0.48, 0)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Status Remote: Mencari..."
-statusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-statusLabel.Font = Enum.Font.Gotham
-statusLabel.TextSize = 11
-statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+-- Scrolling frame untuk daftar remote
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -10, 1, -80)
+scroll.Position = UDim2.new(0, 5, 0, 35)
+scroll.BackgroundTransparency = 1
+scroll.ScrollBarThickness = 5
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scroll.Parent = mainFrame
 
--- Input manual remote name
-local inputBox = Instance.new("TextBox", frame)
-inputBox.Size = UDim2.new(0.6, 0, 0, 30)
-inputBox.Position = UDim2.new(0.05, 0, 0.62, 0)
-inputBox.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-inputBox.Text = "Ketik nama remote"
-inputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-inputBox.Font = Enum.Font.Gotham
-inputBox.TextSize = 11
-Instance.new("UICorner", inputBox).CornerRadius = UDim.new(0, 4)
-inputBox.ClearTextOnFocus = true
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 4)
+listLayout.Parent = scroll
 
-local setBtn = Instance.new("TextButton", frame)
-setBtn.Size = UDim2.new(0.25, 0, 0, 30)
-setBtn.Position = UDim2.new(0.7, 0, 0.62, 0)
-setBtn.Text = "Set Remote"
-setBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 200)
-setBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-setBtn.Font = Enum.Font.GothamBold
-setBtn.TextSize = 10
-Instance.new("UICorner", setBtn).CornerRadius = UDim.new(0, 4)
+-- Refresh button
+local refreshBtn = Instance.new("TextButton")
+refreshBtn.Size = UDim2.new(0, 100, 0, 30)
+refreshBtn.Position = UDim2.new(0.05, 0, 1, -38)
+refreshBtn.Text = "Scan Ulang"
+refreshBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 200)
+refreshBtn.TextColor3 = Color3.fromRGB(255,255,255)
+refreshBtn.Font = Enum.Font.GothamBold
+refreshBtn.TextSize = 12
+Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 4)
+refreshBtn.Parent = mainFrame
 
--- ==================== LOGIKA GUI ====================
+-- Copy All button
+local copyAllBtn = Instance.new("TextButton")
+copyAllBtn.Size = UDim2.new(0, 120, 0, 30)
+copyAllBtn.Position = UDim2.new(0.45, 0, 1, -38)
+copyAllBtn.Text = "Copy Semua"
+copyAllBtn.BackgroundColor3 = Color3.fromRGB(200, 150, 50)
+copyAllBtn.TextColor3 = Color3.fromRGB(255,255,255)
+copyAllBtn.Font = Enum.Font.GothamBold
+copyAllBtn.TextSize = 12
+Instance.new("UICorner", copyAllBtn).CornerRadius = UDim.new(0, 4)
+copyAllBtn.Parent = mainFrame
 
--- Cari remote otomatis
-local remote = FindInvisibleRemote()
-if remote then
-    Config.RemoteFound = true
-    Config.RemoteObject = remote
-    statusLabel.Text = "✅ Remote ditemukan: " .. remote.Name
-    statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-    print("✅ Remote invisibility ditemukan: " .. remote.Name)
-else
-    statusLabel.Text = "⚠️ Remote tidak ditemukan. Gunakan client-side."
-    statusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
-    print("⚠️ Remote tidak ditemukan.")
+local function populateList()
+    -- Clear previous
+    for _, child in ipairs(scroll:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+
+    local remotes = getAllRemotes()
+    if #remotes == 0 then
+        local noItem = Instance.new("TextLabel")
+        noItem.Size = UDim2.new(1, 0, 0, 30)
+        noItem.BackgroundTransparency = 1
+        noItem.Text = "Tidak ada remote ditemukan."
+        noItem.TextColor3 = Color3.fromRGB(200,200,200)
+        noItem.Font = Enum.Font.Gotham
+        noItem.TextSize = 12
+        noItem.Parent = scroll
+        return
+    end
+
+    for _, info in ipairs(remotes) do
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, -10, 0, 30)
+        btn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+        btn.Text = info.Name .. "  (" .. info.Class .. ")  " .. info.Path
+        btn.TextColor3 = Color3.fromRGB(255,255,255)
+        btn.Font = Enum.Font.Gotham
+        btn.TextSize = 10
+        btn.TextXAlignment = Enum.TextXAlignment.Left
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+        btn.Parent = scroll
+
+        -- Tombol copy untuk remote ini
+        local copyBtn = Instance.new("TextButton")
+        copyBtn.Size = UDim2.new(0, 50, 0, 22)
+        copyBtn.Position = UDim2.new(1, -55, 0.5, -11)
+        copyBtn.Text = "Copy"
+        copyBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 70)
+        copyBtn.TextColor3 = Color3.fromRGB(255,255,255)
+        copyBtn.Font = Enum.Font.GothamBold
+        copyBtn.TextSize = 10
+        Instance.new("UICorner", copyBtn).CornerRadius = UDim.new(0, 4)
+        copyBtn.Parent = btn
+
+        copyBtn.MouseButton1Click:Connect(function()
+            local text = "local remote = game:GetService(\"ReplicatedStorage\")" -- default
+            -- Kita coba buat string yang lebih akurat berdasarkan path
+            local pathParts = {}
+            for part in string.gmatch(info.Path, "[^%.]+") do
+                table.insert(pathParts, part)
+            end
+            -- Buat script untuk mengakses remote
+            local pathStr = ""
+            for i, part in ipairs(pathParts) do
+                if i == 1 then
+                    pathStr = pathStr .. "game:GetService(\"" .. part .. "\")"
+                else
+                    pathStr = pathStr .. ":FindFirstChild(\"" .. part .. "\")"
+                end
+            end
+            local scriptText = "local remote = " .. pathStr .. "\n-- Remote type: " .. info.Class
+            if copyToClipboard(scriptText) then
+                print("Copied: " .. scriptText)
+            else
+                print("Copy failed")
+            end
+        end)
+    end
 end
 
--- Toggle button
-btn.MouseButton1Click:Connect(function()
-    ToggleInvisible()
-    if Config.Invisible then
-        btn.Text = "INVISIBLE ON"
-        btn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+refreshBtn.MouseButton1Click:Connect(populateList)
+
+copyAllBtn.MouseButton1Click:Connect(function()
+    local remotes = getAllRemotes()
+    local lines = {}
+    for _, info in ipairs(remotes) do
+        table.insert(lines, info.Path .. " (" .. info.Class .. ")")
+    end
+    local fullText = table.concat(lines, "\n")
+    if copyToClipboard(fullText) then
+        print("Semua remote dicopy!")
     else
-        btn.Text = "INVISIBLE OFF"
-        btn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+        print("Copy semua gagal")
     end
 end)
 
--- Set remote manual
-setBtn.MouseButton1Click:Connect(function()
-    local name = inputBox.Text
-    if name and name ~= "" then
-        local obj = ReplicatedStorage:FindFirstChild(name)
-        if obj and (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) then
-            Config.RemoteFound = true
-            Config.RemoteObject = obj
-            statusLabel.Text = "✅ Remote manual: " .. name
-            statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-            print("✅ Remote manual diset: " .. name)
-        else
-            statusLabel.Text = "❌ Remote tidak ditemukan: " .. name
-            statusLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
-        end
-    end
-end)
+-- Initial populate
+populateList()
 
--- ==================== INFO ====================
-
-print("✅ SCRIPT INVISIBLE TOTAL LOADED!")
-print("🔹 Klik 'INVISIBLE OFF' untuk toggle.")
-print("🔹 Jika remote ditemukan, invisible server-side (semua pemain melihat).")
-print("🔹 Jika tidak, hanya client-side (hanya kamu yang melihat efek balok).")
-print("🔹 Kamu juga bisa ketik nama remote manual lalu klik 'Set Remote'.")
+print("✅ Remote Scanner loaded! UI muncul di layar.")
