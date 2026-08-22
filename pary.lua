@@ -1,10 +1,10 @@
 --[[
 =========================================================================
-    NO MERCY HUB V3.5 + FE INVISIBLE (CFrame Desync Method)
-    - Invisible: Real body di-hide tiap frame via CFrame + CameraOffset
-    - You see yourself: R6 Clone 50% transparan
-    - Aimbot + Laser + FOV Circle tetap jalan
-    - Hotkey G / UI Toggle / Auto Respawn
+    NO MERCY HUB V3.5 + FE INVISIBLE (TRANSPARENCY ONLY — NO CFRAME)
+    - Fix: Badan gak di-buang kemana-mana, tetap di posisi
+    - Fix: Cuma ubah Transparency = 1 (sync ke server = orang lain lihat hilang)
+    - Fix: Clone lokal 50% transparan (kamu lihat = ghost)
+    - No BodyMover, No CFrame Teleport, No Void
 =========================================================================
 ]]
 
@@ -59,10 +59,9 @@ local CurrentTarget = nil
 local LastFireTime  = 0
 
 -- ==================== INVISIBLE STATE ====================
-local InvCharacter, InvHumanoid, InvRoot, InvParts = nil, nil, nil, {}
 local InvClone = nil
-local InvHeartbeat = nil
-local InvSavedTransparency = {}
+local InvLoop = nil
+local InvSaved = {}
 
 -- ==================== VISUAL: LASER TRACER ====================
 local LaserPart = Instance.new("Part")
@@ -189,37 +188,63 @@ local function FireWeapon(targetPos)
     end
 end
 
--- ==================== INVISIBLE SYSTEM (CFrame Desync) ====================
-local function UpdateInvCharacter()
-    InvCharacter = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    InvHumanoid = InvCharacter:WaitForChild("Humanoid")
-    InvRoot = InvCharacter:WaitForChild("HumanoidRootPart")
-    InvParts = {}
-    for _, v in ipairs(InvCharacter:GetDescendants()) do
-        if v:IsA("BasePart") and v.Transparency == 0 then
-            table.insert(InvParts, v)
+-- ==================== INVISIBLE SYSTEM (TRANSPARENCY ONLY) ====================
+local function MakeInvisible(char)
+    if not char then return end
+    for _, obj in ipairs(char:GetDescendants()) do
+        if obj:IsA("BasePart") or obj:IsA("MeshPart") then
+            if InvSaved[obj] == nil then InvSaved[obj] = obj.Transparency end
+            obj.Transparency = 1
+            obj.CastShadow = false
+        elseif obj:IsA("Decal") or obj:IsA("Texture") then
+            if InvSaved[obj] == nil then InvSaved[obj] = obj.Transparency end
+            obj.Transparency = 1
+        elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+            if InvSaved[obj] == nil then InvSaved[obj] = obj.Enabled end
+            obj.Enabled = false
         end
+    end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
     end
 end
 
-local function CreateInvClone()
+local function RestoreVisible(char)
+    if not char then return end
+    for obj, val in pairs(InvSaved) do
+        if obj and obj.Parent then
+            if obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("Decal") or obj:IsA("Texture") then
+                pcall(function() obj.Transparency = val end)
+            elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+                pcall(function() obj.Enabled = val end)
+            end
+        end
+    end
+    InvSaved = {}
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
+    end
+end
+
+local function CreateGhostClone(char)
     if InvClone then InvClone:Destroy() InvClone = nil end
-    if not InvCharacter then return end
-    local arch = InvCharacter.Archivable
-    InvCharacter.Archivable = true
-    InvClone = InvCharacter:Clone()
-    InvCharacter.Archivable = arch
+    if not char then return end
+    local arch = char.Archivable
+    char.Archivable = true
+    InvClone = char:Clone()
+    char.Archivable = arch
 
     if InvClone then
-        InvClone.Name = "InvGhostClone"
+        InvClone.Name = "GhostClone"
         for _, obj in ipairs(InvClone:GetDescendants()) do
             if obj:IsA("Script") or obj:IsA("LocalScript") or obj:IsA("Humanoid") then
                 obj:Destroy()
             elseif obj:IsA("BasePart") or obj:IsA("MeshPart") then
                 obj.Transparency = 0.5
                 obj.CanCollide = false
-                obj.Anchored = false
-                obj.Massless = true
+                obj.Anchored = true
                 obj.CastShadow = false
             elseif obj:IsA("Decal") or obj:IsA("Texture") then
                 obj.Transparency = 0.5
@@ -227,63 +252,45 @@ local function CreateInvClone()
                 obj.Enabled = false
             end
         end
-        local cHRP = InvClone:FindFirstChild("HumanoidRootPart")
-        if cHRP then
-            InvClone.PrimaryPart = cHRP
-            cHRP.Anchored = true
-        end
         InvClone.Parent = Workspace
     end
 end
 
-local function DestroyInvClone()
+local function DestroyGhostClone()
     if InvClone then InvClone:Destroy() InvClone = nil end
-    for obj, val in pairs(InvSavedTransparency) do
-        if obj and obj.Parent then
-            pcall(function() obj.Transparency = val end)
+end
+
+local function SyncGhostClone(char)
+    if not InvClone or not InvClone.Parent then return end
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    pcall(function()
+        if InvClone.PrimaryPart then
+            InvClone:PivotTo(hrp.CFrame)
+        else
+            local cHRP = InvClone:FindFirstChild("HumanoidRootPart")
+            if cHRP then cHRP.CFrame = hrp.CFrame end
         end
-    end
-    InvSavedTransparency = {}
+    end)
 end
 
 local function EnableInvisible()
     if Config.Invisible then return end
-    UpdateInvCharacter()
-    if not InvRoot or not InvHumanoid then return end
+    local char = LocalPlayer.Character
+    if not char then return end
 
     Config.Invisible = true
-    InvSavedTransparency = {}
-    for _, v in ipairs(InvParts) do
-        InvSavedTransparency[v] = v.Transparency
-        v.Transparency = 1
-    end
-    InvHumanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+    MakeInvisible(char)
+    CreateGhostClone(char)
 
-    CreateInvClone()
-
-    InvHeartbeat = RunService.Heartbeat:Connect(function()
-        if not Config.Invisible or not InvRoot or not InvRoot.Parent then return end
-        if not InvHumanoid or not InvHumanoid.Parent then return end
-
-        local oldCF = InvRoot.CFrame
-        local oldOffset = InvHumanoid.CameraOffset
-        local hideCF = oldCF * CFrame.new(0, -200000, 0)
-
-        InvRoot.CFrame = hideCF
-        InvHumanoid.CameraOffset = hideCF:ToObjectSpace(CFrame.new(oldCF.Position)).Position
-
-        RunService.RenderStepped:Wait()
-
-        InvRoot.CFrame = oldCF
-        InvHumanoid.CameraOffset = oldOffset
-
-        -- Sync clone ke posisi asli
-        if InvClone and InvClone.Parent then
-            pcall(function()
-                if InvClone.PrimaryPart then
-                    InvClone:PivotTo(oldCF)
-                end
-            end)
+    -- Loop tiap frame: jaga transparansi + sync clone
+    InvLoop = RunService.Heartbeat:Connect(function()
+        if not Config.Invisible then return end
+        local c = LocalPlayer.Character
+        if c then
+            MakeInvisible(c)           -- Jaga tetap invisible (anti reset)
+            SyncGhostClone(c)          -- Clone ikut gerak badan asli
         end
     end)
 end
@@ -291,11 +298,9 @@ end
 local function DisableInvisible()
     if not Config.Invisible then return end
     Config.Invisible = false
-    if InvHeartbeat then InvHeartbeat:Disconnect() InvHeartbeat = nil end
-    DestroyInvClone()
-    if InvHumanoid and InvHumanoid.Parent then
-        InvHumanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
-    end
+    if InvLoop then InvLoop:Disconnect() InvLoop = nil end
+    DestroyGhostClone()
+    RestoreVisible(LocalPlayer.Character)
 end
 
 -- ==================== NOCLIP SYSTEM ====================
@@ -623,14 +628,14 @@ AddToggle(VisualTab, "Laser Tracer ON/OFF", Config.LaserEnabled, function(v) Con
 AddToggle(VisualTab, "FOV Circle ON/OFF", Config.FOVCircleOn, function(v) Config.FOVCircleOn = v end)
 
 -- ==================== INVISIBLE TAB CONTENT ====================
-AddToggle(InvTab, "FE Invisible (CFrame Desync)", false, function(v)
+AddToggle(InvTab, "FE Invisible (Transparency)", false, function(v)
     if v then EnableInvisible() else DisableInvisible() end
 end)
 
 local invHint = Instance.new("TextLabel", InvTab)
 invHint.Size = UDim2.new(1, 0, 0, 70)
 invHint.BackgroundTransparency = 1
-invHint.Text = "Real body hidden via CFrame desync.\nYou see ghost clone (50% visible).\nHotkey: G | No death | Free movement | Aimbot works"
+invHint.Text = "Body stays in place, only Transparency changed.\nServer syncs transparency = others see you gone.\nYou see ghost clone (50%).\nHotkey: G"
 invHint.TextColor3 = THEME.TextDim
 invHint.TextSize = 10
 invHint.Font = Enum.Font.Gotham
@@ -658,27 +663,16 @@ UserInputService.InputBegan:Connect(function(input, gpe)
     if input.KeyCode == Enum.KeyCode.G then
         if Config.Invisible then
             DisableInvisible()
-            -- Update UI dot
-            for _, page in pairs(Tabs) do
-                for _, child in ipairs(page.Page:GetChildren()) do
-                    if child:IsA("Frame") and child:FindFirstChild("TextLabel") and child.TextLabel.Text == "FE Invisible (CFrame Desync)" then
-                        for _, dot in ipairs(child:GetChildren()) do
-                            if dot:IsA("Frame") and dot.Size.X.Offset == 28 then
-                                dot.BackgroundColor3 = Color3.fromRGB(60, 60, 75)
-                            end
-                        end
-                    end
-                end
-            end
         else
             EnableInvisible()
-            for _, page in pairs(Tabs) do
-                for _, child in ipairs(page.Page:GetChildren()) do
-                    if child:IsA("Frame") and child:FindFirstChild("TextLabel") and child.TextLabel.Text == "FE Invisible (CFrame Desync)" then
-                        for _, dot in ipairs(child:GetChildren()) do
-                            if dot:IsA("Frame") and dot.Size.X.Offset == 28 then
-                                dot.BackgroundColor3 = THEME.Green
-                            end
+        end
+        -- Update UI dot (simplified)
+        for _, tab in pairs(Tabs) do
+            for _, child in ipairs(tab.Page:GetChildren()) do
+                if child:IsA("Frame") and child:FindFirstChild("TextLabel") and child.TextLabel.Text == "FE Invisible (Transparency)" then
+                    for _, dot in ipairs(child:GetChildren()) do
+                        if dot:IsA("Frame") and dot.Size.X.Offset == 28 then
+                            dot.BackgroundColor3 = Config.Invisible and THEME.Green or Color3.fromRGB(60, 60, 75)
                         end
                     end
                 end
@@ -690,14 +684,14 @@ end)
 -- ==================== CHARACTER EVENTS ====================
 LocalPlayer.CharacterAdded:Connect(function(char)
     task.wait(1)
-    UpdateInvCharacter()
     if Config.Invisible then
-        task.wait(0.5)
-        EnableInvisible()
+        task.wait(0.3)
+        MakeInvisible(char)
+        CreateGhostClone(char)
     end
     if Config.NoClip then
         StartNoclip()
     end
 end)
 
-print("✅ NO MERCY HUB V3.5 — FE Invisible (CFrame Desync) Loaded!")
+print("✅ NO MERCY HUB V3.5 — FE Invisible (Transparency Only) Loaded!")
