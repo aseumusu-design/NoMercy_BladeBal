@@ -1,10 +1,9 @@
 --[[
 =========================================================================
-    NO MERCY HUB - HIDE BODY + FAKE CLONE (KAMERA MENGIKUTI CLONE)
-    - Menyembunyikan karakter asli di bawah map
-    - Membuat clone yang bisa dikendalikan (WASD, F untuk tembak)
-    - Kamera mengikuti clone, bukan karakter asli
-    - Clone transparan agar terlihat seperti hantu
+    NO MERCY HUB - HIDE BODY + FAKE CLONE (BERJALAN & TEMBAK)
+    - Karakter asli disembunyikan di bawah map
+    - Clone berjalan normal (WASD), melompat (Space), menembak (Klik Kiri)
+    - Kamera mengikuti clone
 =========================================================================
 ]]
 
@@ -53,23 +52,19 @@ end
 
 -- ==================== FUNGSI UTAMA ====================
 
--- Menyembunyikan karakter asli di bawah map
 local function HideOriginalCharacter()
     local char = LocalPlayer.Character
     if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
 
-    -- Simpan posisi asli
     Config.OriginalPos = hrp.Position
     Config.OriginalCFrame = hrp.CFrame
 
-    -- Teleport ke bawah map (y = -1000)
     local hiddenPos = CFrame.new(hrp.Position.X, -1000, hrp.Position.Z)
     hrp.CFrame = hiddenPos
     hrp.Anchored = true
 
-    -- Buat semua part transparan dan non-collide
     for _, part in ipairs(char:GetDescendants()) do
         if part:IsA("BasePart") then
             part.Transparency = 1
@@ -77,7 +72,6 @@ local function HideOriginalCharacter()
         end
     end
 
-    -- Nonaktifkan Humanoid
     local hum = char:FindFirstChildOfClass("Humanoid")
     if hum then
         hum.PlatformStand = true
@@ -85,10 +79,9 @@ local function HideOriginalCharacter()
         hum.JumpPower = 0
     end
 
-    print("✅ Karakter asli disembunyikan di bawah map.")
+    print("✅ Karakter asli disembunyikan.")
 end
 
--- Mengembalikan karakter asli
 local function RestoreOriginalCharacter()
     local char = LocalPlayer.Character
     if not char then return end
@@ -117,12 +110,10 @@ local function RestoreOriginalCharacter()
     print("✅ Karakter asli dikembalikan.")
 end
 
--- Membuat clone karakter
 local function CreateClone()
     local char = LocalPlayer.Character
     if not char then return end
 
-    -- Clone model
     local clone = char:Clone()
     clone.Name = "FakeCharacter"
     clone.Parent = Workspace
@@ -133,7 +124,7 @@ local function CreateClone()
         hrp.CFrame = CFrame.new(Config.OriginalPos)
     end
 
-    -- Beri Humanoid agar bisa bergerak
+    -- Aktifkan Humanoid clone
     local hum = clone:FindFirstChildOfClass("Humanoid")
     if hum then
         hum.PlatformStand = false
@@ -141,7 +132,7 @@ local function CreateClone()
         hum.JumpPower = 50
     end
 
-    -- Set transparansi agar terlihat samar
+    -- Set transparansi clone (opsional)
     for _, part in ipairs(clone:GetDescendants()) do
         if part:IsA("BasePart") then
             part.Transparency = 0.3
@@ -149,20 +140,16 @@ local function CreateClone()
     end
 
     Config.Clone = clone
-
-    -- Set kamera ke clone
     SetCameraToClone(clone)
 
-    print("✅ Clone karakter dibuat.")
+    print("✅ Clone dibuat.")
     return clone
 end
 
--- Menghapus clone
 local function RemoveClone()
     if Config.Clone then
         Config.Clone:Destroy()
         Config.Clone = nil
-        -- Kembalikan kamera ke karakter asli
         ResetCamera()
         print("✅ Clone dihapus.")
     end
@@ -170,26 +157,29 @@ end
 
 -- ==================== KENDALIKAN CLONE ====================
 
--- Fungsi untuk menggerakkan clone
+-- Fungsi untuk menggerakkan clone menggunakan Humanoid:MoveTo()
 local function MoveClone(direction)
     if not Config.Clone then return end
-    local hrp = Config.Clone:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
     local hum = Config.Clone:FindFirstChildOfClass("Humanoid")
     if not hum then return end
+    local hrp = Config.Clone:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
 
-    local speed = 16
-    local moveVector = direction * speed
-    hrp.Velocity = Vector3.new(moveVector.X, hrp.Velocity.Y, moveVector.Z)
-
-    -- Arahkan clone menghadap ke arah kamera
-    local lookDir = Camera.CFrame.LookVector
-    hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + Vector3.new(lookDir.X, 0, lookDir.Z))
+    if direction.Magnitude > 0 then
+        local targetPos = hrp.Position + direction * 2
+        hum:MoveTo(targetPos)
+        -- Arahkan menghadap ke arah kamera
+        local lookDir = Camera.CFrame.LookVector
+        hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + Vector3.new(lookDir.X, 0, lookDir.Z))
+    else
+        hum:MoveTo(hrp.Position) -- berhenti
+    end
 end
 
--- Clone menembak (sama seperti aimbot sebelumnya)
+-- Clone menembak (remote Fire)
 local function CloneFire()
     if not Config.Clone then return end
+    -- Cari remote Fire
     local fireRemote = ReplicatedStorage:FindFirstChild("Remotes")
     if fireRemote then
         fireRemote = fireRemote:FindFirstChild("Items")
@@ -200,22 +190,31 @@ local function CloneFire()
     if fireRemote then
         fireRemote = fireRemote:FindFirstChild("Fire")
     end
-    if not fireRemote then return end
+    if not fireRemote then
+        print("⚠️ Remote Fire tidak ditemukan.")
+        return
+    end
 
     local tool = Config.Clone:FindFirstChild("Twist of Fate")
     local gun = tool and tool:FindFirstChild("Right Arm") and tool["Right Arm"]:FindFirstChild("EmperorGun")
-    if not gun then return end
+    if not gun then
+        print("⚠️ Clone tidak memiliki senjata.")
+        return
+    end
 
+    -- Target: ke arah kamera
     local targetPos = Camera.CFrame.Position + Camera.CFrame.LookVector * 100
     local from = gun.Position
     local dir = (targetPos - from).Unit
     pcall(function()
         fireRemote:FireServer(gun, Vector3.new(dir.X, dir.Y, dir.Z))
+        print("🔫 Clone menembak!")
     end)
 end
 
 -- ==================== INPUT HANDLING ====================
 
+-- Gerakan WASD
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed or not Config.HideMode then return end
     if input.UserInputType == Enum.UserInputType.Keyboard then
@@ -225,6 +224,13 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
         end
         if key == "F" then
             CloneFire()
+        end
+        -- Lompat dengan Space
+        if key == "Space" then
+            local hum = Config.Clone and Config.Clone:FindFirstChildOfClass("Humanoid")
+            if hum then
+                hum.Jump = true
+            end
         end
     end
 end)
@@ -236,6 +242,14 @@ UserInputService.InputEnded:Connect(function(input, gameProcessed)
         if key == "W" or key == "A" or key == "S" or key == "D" then
             Config.IsMoving = false
         end
+    end
+end)
+
+-- Klik kiri mouse untuk menembak
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed or not Config.HideMode then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        CloneFire()
     end
 end)
 
@@ -256,13 +270,11 @@ RunService.RenderStepped:Connect(function()
     if UserInputService:IsKeyDown(Enum.KeyCode.D) then
         moveDir = moveDir + Camera.CFrame.RightVector
     end
+    -- Normalisasi dan panggil MoveClone
     if moveDir.Magnitude > 0 then
         MoveClone(moveDir.Unit)
     else
-        local hrp = Config.Clone:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.Velocity = Vector3.new(0, hrp.Velocity.Y, 0)
-        end
+        MoveClone(Vector3.new(0,0,0))
     end
 end)
 
@@ -294,6 +306,5 @@ btn.MouseButton1Click:Connect(function()
     end
 end)
 
-print("✅ SCRIPT HIDE BODY + FAKE CLONE (KAMERA CLONE) LOADED!")
-print("🔹 Aktifkan 'HIDE MODE' untuk menyembunyikan karakter asli dan membuat clone.")
-print("🔹 WASD = gerakkan clone, F = tembak, kamera mengikuti clone.")
+print("✅ HIDE BODY + FAKE CLONE (BERJALAN & TEMBAK) LOADED!")
+print("🔹 Aktifkan HIDE MODE, WASD jalan, Space lompat, Klik Kiri atau F tembak.")
