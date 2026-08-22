@@ -1,253 +1,204 @@
--- PASTE DI ROBLOX STUDIO COMMAND BAR
--- Bukan F9 Developer Console
+local RS = game:GetService("ReplicatedStorage")
+local SSS = game:GetService("ServerScriptService")
+local SP = game:GetService("StarterPlayer")
+local SPS = SP:WaitForChild("StarterPlayerScripts")
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ServerScriptService = game:GetService("ServerScriptService")
-local StarterPlayer = game:GetService("StarterPlayer")
-
--- Hapus versi lama kalau ada
-local oldEvent = ReplicatedStorage:FindFirstChild("ToggleInvisible")
-if oldEvent then
-	oldEvent:Destroy()
-end
-
-local oldServer = ServerScriptService:FindFirstChild("InvisibleServer")
-if oldServer then
-	oldServer:Destroy()
-end
-
-local starterScripts = StarterPlayer:WaitForChild("StarterPlayerScripts")
-local oldClient = starterScripts:FindFirstChild("InvisibleClient")
-if oldClient then
-	oldClient:Destroy()
+-- Bersihkan versi lama
+for _, obj in ipairs({
+	RS:FindFirstChild("ToggleInvisible"),
+	SSS:FindFirstChild("InvisibleServer"),
+	SPS:FindFirstChild("InvisibleClient")
+}) do
+	if obj then
+		obj:Destroy()
+	end
 end
 
 -- RemoteEvent
 local remote = Instance.new("RemoteEvent")
 remote.Name = "ToggleInvisible"
-remote.Parent = ReplicatedStorage
+remote.Parent = RS
 
--- Server Script
-local serverScript = Instance.new("Script")
-serverScript.Name = "InvisibleServer"
-serverScript.Source = [=[
+-- SERVER SCRIPT
+local server = Instance.new("Script")
+server.Name = "InvisibleServer"
+server.Source = [==[
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local toggleEvent = ReplicatedStorage:WaitForChild("ToggleInvisible")
+local remote = ReplicatedStorage:WaitForChild("ToggleInvisible")
+local states = {}
+local cooldown = {}
 
-local invisibleStates = {}
-local lastToggle = {}
-
-local function applyState(player)
-	local character = player.Character
-
-	if character then
-		character:SetAttribute(
+local function updateCharacter(player)
+	if player.Character then
+		player.Character:SetAttribute(
 			"InvisibleToOthers",
-			invisibleStates[player] == true
+			states[player] == true
 		)
 	end
 end
 
 Players.PlayerAdded:Connect(function(player)
-	invisibleStates[player] = false
+	states[player] = false
 
 	player.CharacterAdded:Connect(function()
-		task.wait(0.2)
-		applyState(player)
+		task.wait(0.5)
+		updateCharacter(player)
 	end)
 end)
 
-toggleEvent.OnServerEvent:Connect(function(player, requestedState)
-	if typeof(requestedState) ~= "boolean" then
+remote.OnServerEvent:Connect(function(player, state)
+	if typeof(state) ~= "boolean" then
 		return
 	end
 
-	local currentTime = os.clock()
+	local now = os.clock()
 
-	if lastToggle[player] then
-		if currentTime - lastToggle[player] < 0.25 then
-			return
-		end
+	if cooldown[player] and now - cooldown[player] < 0.3 then
+		return
 	end
 
-	lastToggle[player] = currentTime
-	invisibleStates[player] = requestedState
-
-	applyState(player)
+	cooldown[player] = now
+	states[player] = state
+	updateCharacter(player)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
-	invisibleStates[player] = nil
-	lastToggle[player] = nil
+	states[player] = nil
+	cooldown[player] = nil
 end)
-]=]
-serverScript.Parent = ServerScriptService
+]==]
+server.Parent = SSS
 
--- Client LocalScript
-local clientScript = Instance.new("LocalScript")
-clientScript.Name = "InvisibleClient"
-clientScript.Source = [=[
+-- CLIENT SCRIPT + UI
+local client = Instance.new("LocalScript")
+client.Name = "InvisibleClient"
+client.Source = [==[
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local localPlayer = Players.LocalPlayer
-local toggleEvent = ReplicatedStorage:WaitForChild("ToggleInvisible")
+local player = Players.LocalPlayer
+local remote = ReplicatedStorage:WaitForChild("ToggleInvisible")
 
-local invisibleEnabled = false
-local playerConnections = {}
+local enabled = false
 
-local function setPartVisibility(object, hidden)
-	if object:IsA("BasePart") then
-		object.LocalTransparencyModifier = hidden and 1 or 0
-	end
-end
-
-local function updateCharacterVisibility(character, hidden)
+local function setHidden(character, hidden)
 	if not character then
 		return
 	end
 
 	for _, object in ipairs(character:GetDescendants()) do
-		setPartVisibility(object, hidden)
+		if object:IsA("BasePart") then
+			object.LocalTransparencyModifier = hidden and 1 or 0
+		end
 	end
 end
 
-local function watchCharacter(player, character)
+local function watchCharacter(otherPlayer, character)
 	if not character then
 		return
 	end
 
-	-- Pemilik karakter tetap bisa melihat dirinya sendiri
-	if player == localPlayer then
-		updateCharacterVisibility(character, false)
+	if otherPlayer == player then
+		setHidden(character, false)
 		return
 	end
 
 	local function refresh()
-		local shouldHide =
+		local invisible =
 			character:GetAttribute("InvisibleToOthers") == true
 
-		updateCharacterVisibility(character, shouldHide)
+		setHidden(character, invisible)
 	end
 
 	refresh()
 
-	local attributeConnection =
-		character:GetAttributeChangedSignal("InvisibleToOthers"):Connect(refresh)
+	character:GetAttributeChangedSignal(
+		"InvisibleToOthers"
+	):Connect(refresh)
 
-	local descendantConnection =
-		character.DescendantAdded:Connect(function(object)
-			local shouldHide =
-				character:GetAttribute("InvisibleToOthers") == true
+	character.DescendantAdded:Connect(function(object)
+		local invisible =
+			character:GetAttribute("InvisibleToOthers") == true
 
-			setPartVisibility(object, shouldHide)
-		end)
-
-	if not playerConnections[player] then
-		playerConnections[player] = {}
-	end
-
-	table.insert(playerConnections[player], attributeConnection)
-	table.insert(playerConnections[player], descendantConnection)
+		if object:IsA("BasePart") then
+			object.LocalTransparencyModifier = invisible and 1 or 0
+		end
+	end)
 end
 
-local function watchPlayer(player)
-	if player == localPlayer then
+local function watchPlayer(otherPlayer)
+	if otherPlayer == player then
 		return
 	end
 
-	if playerConnections[player] then
-		for _, connection in ipairs(playerConnections[player]) do
-			connection:Disconnect()
-		end
-	end
-
-	playerConnections[player] = {}
-
-	player.CharacterAdded:Connect(function(character)
+	otherPlayer.CharacterAdded:Connect(function(character)
 		task.wait(0.2)
-		watchCharacter(player, character)
+		watchCharacter(otherPlayer, character)
 	end)
 
-	if player.Character then
-		watchCharacter(player, player.Character)
+	if otherPlayer.Character then
+		watchCharacter(otherPlayer, otherPlayer.Character)
 	end
 end
 
-for _, player in ipairs(Players:GetPlayers()) do
-	watchPlayer(player)
+for _, otherPlayer in ipairs(Players:GetPlayers()) do
+	watchPlayer(otherPlayer)
 end
 
 Players.PlayerAdded:Connect(watchPlayer)
 
-Players.PlayerRemoving:Connect(function(player)
-	if playerConnections[player] then
-		for _, connection in ipairs(playerConnections[player]) do
-			connection:Disconnect()
-		end
-
-		playerConnections[player] = nil
-	end
-end)
-
 -- UI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "InvisibleUI"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+local gui = Instance.new("ScreenGui")
+gui.Name = "InvisibleUI"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
 
 local button = Instance.new("TextButton")
-button.Name = "InvisibleButton"
-button.Size = UDim2.fromOffset(190, 50)
-button.Position = UDim2.new(0, 20, 1, -75)
-button.BackgroundColor3 = Color3.fromRGB(55, 55, 65)
+button.Name = "ToggleButton"
+button.Size = UDim2.fromOffset(200, 55)
+button.Position = UDim2.new(0, 20, 1, -80)
+button.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
 button.TextColor3 = Color3.fromRGB(255, 255, 255)
-button.TextSize = 17
+button.TextSize = 18
 button.Font = Enum.Font.GothamBold
-button.Text = "Invisible: OFF"
-button.AutoButtonColor = true
-button.Parent = screenGui
+button.Text = "INVISIBLE: OFF"
+button.Parent = gui
 
 local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 10)
+corner.CornerRadius = UDim.new(0, 12)
 corner.Parent = button
 
-local stroke = Instance.new("UIStroke")
-stroke.Thickness = 1.5
-stroke.Color = Color3.fromRGB(130, 130, 140)
-stroke.Parent = button
-
 local function updateButton()
-	if invisibleEnabled then
-		button.Text = "Invisible: ON"
-		button.BackgroundColor3 = Color3.fromRGB(35, 150, 85)
+	if enabled then
+		button.Text = "INVISIBLE: ON"
+		button.BackgroundColor3 = Color3.fromRGB(35, 160, 85)
 	else
-		button.Text = "Invisible: OFF"
-		button.BackgroundColor3 = Color3.fromRGB(55, 55, 65)
+		button.Text = "INVISIBLE: OFF"
+		button.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
 	end
 end
 
 button.Activated:Connect(function()
-	invisibleEnabled = not invisibleEnabled
+	enabled = not enabled
 
 	updateButton()
-	toggleEvent:FireServer(invisibleEnabled)
+	remote:FireServer(enabled)
 
-	-- Pastikan karakter sendiri tetap terlihat
-	if localPlayer.Character then
-		updateCharacterVisibility(localPlayer.Character, false)
+	-- Karakter sendiri tetap terlihat
+	if player.Character then
+		setHidden(player.Character, false)
 	end
 end)
 
-localPlayer.CharacterAdded:Connect(function(character)
+player.CharacterAdded:Connect(function(character)
 	task.wait(0.3)
-	updateCharacterVisibility(character, false)
+	setHidden(character, false)
 end)
 
 updateButton()
-]=]
-clientScript.Parent = starterScripts
+]==]
+client.Parent = SPS
 
-print("Invisible system berhasil dibuat. Tekan Play untuk mencoba.")
+print("SELESAI: Invisible UI sudah dibuat. Tekan PLAY untuk mencoba.")
