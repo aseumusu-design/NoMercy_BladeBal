@@ -1,219 +1,281 @@
 --[[
 =========================================================================
-    REMOTE SCANNER + COPY (Mencari semua RemoteEvent/RemoteFunction)
-    - Scan ReplicatedStorage, Workspace, Lighting, ServerScriptService, etc.
-    - Tampilkan daftar di UI dengan tombol copy per remote
+    REMOTE SCANNER - CHARACTER & BODY PARTS
+    Mencari semua RemoteEvent/RemoteFunction yang berhubungan dengan:
+    - Karakter (Character, Humanoid, Body, Part, etc.)
+    - Transparansi / Invisibility
+    - Semua part tubuh (Head, Torso, Arms, Legs, etc.)
+    Menampilkan daftar di UI dan tombol Copy All
 =========================================================================
 ]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
-local ServerScriptService = game:GetService("ServerScriptService")
-local ServerStorage = game:GetService("ServerStorage")
-local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
-local function getAllRemotes()
-    local remotes = {}
-    local function scan(obj, path)
-        for _, child in ipairs(obj:GetChildren()) do
-            if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
-                table.insert(remotes, {
-                    Name = child.Name,
-                    Class = child.ClassName,
-                    Path = path .. "." .. child.Name,
-                    Ref = child
+-- ==================== KONFIGURASI KATA KUNCI ====================
+local KEYWORDS = {
+    -- Karakter & tubuh
+    "character", "body", "humanoid", "part", "limb", "torso", "head", "arm", "leg",
+    "transparency", "invisible", "ghost", "stealth", "hide", "cloak", "vanish",
+    "appearance", "avatar", "skin", "mesh", "animation", "ragdoll",
+    -- Remote umum
+    "remote", "event", "function", "fire", "invoke",
+}
+
+-- ==================== FUNGSI PENCARIAN ====================
+
+local FoundRemotes = {} -- {Name, Path, Type}
+
+local function SearchInObject(obj, path)
+    if not obj then return end
+    local currentPath = path .. "." .. obj.Name
+
+    -- Cek apakah ini remote
+    if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+        local nameLower = string.lower(obj.Name)
+        for _, kw in ipairs(KEYWORDS) do
+            if nameLower:find(kw) then
+                table.insert(FoundRemotes, {
+                    Name = obj.Name,
+                    Path = currentPath,
+                    Type = obj.ClassName,
+                    Object = obj,
                 })
-            end
-            if child:IsA("Instance") then
-                scan(child, path .. "." .. child.Name)
+                break
             end
         end
     end
-    scan(ReplicatedStorage, "ReplicatedStorage")
-    scan(Workspace, "Workspace")
-    scan(Lighting, "Lighting")
-    scan(ServerScriptService, "ServerScriptService")
-    scan(ServerStorage, "ServerStorage")
-    -- CoreGui mungkin tidak perlu, tapi kita tambahkan
-    scan(CoreGui, "CoreGui")
-    return remotes
-end
 
-local function copyToClipboard(text)
-    local clipboard = setclipboard or toclipboard or function() end
-    if clipboard then
-        clipboard(text)
-        return true
-    else
-        return false
+    -- Lanjutkan pencarian ke anak-anak
+    for _, child in ipairs(obj:GetChildren()) do
+        SearchInObject(child, currentPath)
     end
 end
 
--- GUI
-local gui = Instance.new("ScreenGui")
-gui.Name = "RemoteScanner"
-gui.ResetOnSpawn = false
-gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+-- ==================== MULAI SCAN ====================
 
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 500, 0, 400)
-mainFrame.Position = UDim2.new(0.5, -250, 0.3, 0)
-mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-mainFrame.BackgroundTransparency = 0.9
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
-mainFrame.Active = true
-mainFrame.Draggable = true
-mainFrame.Parent = gui
+local function StartScan()
+    FoundRemotes = {}
+    local startTime = tick()
 
--- Title
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.BackgroundTransparency = 1
-title.Text = "🔍 Remote Scanner"
-title.TextColor3 = Color3.fromRGB(255,255,255)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 14
-title.Parent = mainFrame
+    -- Scan di ReplicatedStorage
+    SearchInObject(ReplicatedStorage, "ReplicatedStorage")
+    -- Scan di Workspace (mungkin ada remote di model karakter)
+    SearchInObject(Workspace, "Workspace")
+    -- Scan di Players (untuk remote per-player)
+    SearchInObject(Players, "Players")
+    -- Scan di game (root)
+    SearchInObject(game, "game")
 
--- Close button
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 30, 0, 30)
-closeBtn.Position = UDim2.new(1, -35, 0, 2)
-closeBtn.Text = "✕"
-closeBtn.BackgroundTransparency = 1
-closeBtn.TextColor3 = Color3.fromRGB(255,0,0)
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 14
-closeBtn.Parent = mainFrame
-closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
+    local elapsed = tick() - startTime
+    print(string.format("✅ Scan selesai dalam %.2f detik. Ditemukan %d remote.", elapsed, #FoundRemotes))
+    return FoundRemotes
+end
 
--- Scrolling frame untuk daftar remote
-local scroll = Instance.new("ScrollingFrame")
-scroll.Size = UDim2.new(1, -10, 1, -80)
-scroll.Position = UDim2.new(0, 5, 0, 35)
-scroll.BackgroundTransparency = 1
-scroll.ScrollBarThickness = 5
-scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-scroll.Parent = mainFrame
+-- ==================== UI ====================
 
-local listLayout = Instance.new("UIListLayout")
-listLayout.Padding = UDim.new(0, 4)
-listLayout.Parent = scroll
+local function CreateUI()
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "RemoteScanner"
+    gui.ResetOnSpawn = false
+    gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- Refresh button
-local refreshBtn = Instance.new("TextButton")
-refreshBtn.Size = UDim2.new(0, 100, 0, 30)
-refreshBtn.Position = UDim2.new(0.05, 0, 1, -38)
-refreshBtn.Text = "Scan Ulang"
-refreshBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 200)
-refreshBtn.TextColor3 = Color3.fromRGB(255,255,255)
-refreshBtn.Font = Enum.Font.GothamBold
-refreshBtn.TextSize = 12
-Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 4)
-refreshBtn.Parent = mainFrame
+    -- Frame utama
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 600, 0, 500)
+    frame.Position = UDim2.new(0.5, -300, 0.5, -250)
+    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+    frame.Active = true
+    frame.Draggable = true
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+    frame.Parent = gui
 
--- Copy All button
-local copyAllBtn = Instance.new("TextButton")
-copyAllBtn.Size = UDim2.new(0, 120, 0, 30)
-copyAllBtn.Position = UDim2.new(0.45, 0, 1, -38)
-copyAllBtn.Text = "Copy Semua"
-copyAllBtn.BackgroundColor3 = Color3.fromRGB(200, 150, 50)
-copyAllBtn.TextColor3 = Color3.fromRGB(255,255,255)
-copyAllBtn.Font = Enum.Font.GothamBold
-copyAllBtn.TextSize = 12
-Instance.new("UICorner", copyAllBtn).CornerRadius = UDim.new(0, 4)
-copyAllBtn.Parent = mainFrame
+    -- Title
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 40)
+    title.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    title.Text = "🔍 REMOTE SCANNER - CHARACTER BODY"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 16
+    Instance.new("UICorner", title).CornerRadius = UDim.new(0, 10)
+    title.Parent = frame
 
-local function populateList()
-    -- Clear previous
-    for _, child in ipairs(scroll:GetChildren()) do
-        if child:IsA("TextButton") then child:Destroy() end
-    end
+    -- Tombol Scan
+    local scanBtn = Instance.new("TextButton")
+    scanBtn.Size = UDim2.new(0.3, 0, 0, 35)
+    scanBtn.Position = UDim2.new(0.05, 0, 0.1, 0)
+    scanBtn.Text = "🔄 SCAN REMOTES"
+    scanBtn.BackgroundColor3 = Color3.fromRGB(60, 100, 200)
+    scanBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    scanBtn.Font = Enum.Font.GothamBold
+    scanBtn.TextSize = 13
+    Instance.new("UICorner", scanBtn).CornerRadius = UDim.new(0, 6)
+    scanBtn.Parent = frame
 
-    local remotes = getAllRemotes()
-    if #remotes == 0 then
-        local noItem = Instance.new("TextLabel")
-        noItem.Size = UDim2.new(1, 0, 0, 30)
-        noItem.BackgroundTransparency = 1
-        noItem.Text = "Tidak ada remote ditemukan."
-        noItem.TextColor3 = Color3.fromRGB(200,200,200)
-        noItem.Font = Enum.Font.Gotham
-        noItem.TextSize = 12
-        noItem.Parent = scroll
-        return
-    end
+    -- Tombol Copy All
+    local copyBtn = Instance.new("TextButton")
+    copyBtn.Size = UDim2.new(0.3, 0, 0, 35)
+    copyBtn.Position = UDim2.new(0.4, 0, 0.1, 0)
+    copyBtn.Text = "📋 COPY ALL"
+    copyBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 80)
+    copyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    copyBtn.Font = Enum.Font.GothamBold
+    copyBtn.TextSize = 13
+    Instance.new("UICorner", copyBtn).CornerRadius = UDim.new(0, 6)
+    copyBtn.Parent = frame
 
-    for _, info in ipairs(remotes) do
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, -10, 0, 30)
-        btn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-        btn.Text = info.Name .. "  (" .. info.Class .. ")  " .. info.Path
-        btn.TextColor3 = Color3.fromRGB(255,255,255)
-        btn.Font = Enum.Font.Gotham
-        btn.TextSize = 10
-        btn.TextXAlignment = Enum.TextXAlignment.Left
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
-        btn.Parent = scroll
+    -- Status label
+    local status = Instance.new("TextLabel")
+    status.Size = UDim2.new(0.6, 0, 0, 25)
+    status.Position = UDim2.new(0.05, 0, 0.18, 0)
+    status.BackgroundTransparency = 1
+    status.Text = "Status: Belum scan"
+    status.TextColor3 = Color3.fromRGB(200, 200, 200)
+    status.Font = Enum.Font.Gotham
+    status.TextSize = 12
+    status.TextXAlignment = Enum.TextXAlignment.Left
+    status.Parent = frame
 
-        -- Tombol copy untuk remote ini
-        local copyBtn = Instance.new("TextButton")
-        copyBtn.Size = UDim2.new(0, 50, 0, 22)
-        copyBtn.Position = UDim2.new(1, -55, 0.5, -11)
-        copyBtn.Text = "Copy"
-        copyBtn.BackgroundColor3 = Color3.fromRGB(70, 130, 70)
-        copyBtn.TextColor3 = Color3.fromRGB(255,255,255)
-        copyBtn.Font = Enum.Font.GothamBold
-        copyBtn.TextSize = 10
-        Instance.new("UICorner", copyBtn).CornerRadius = UDim.new(0, 4)
-        copyBtn.Parent = btn
+    -- ScrollingFrame untuk daftar remote
+    local listFrame = Instance.new("ScrollingFrame")
+    listFrame.Size = UDim2.new(0.9, 0, 0.7)
+    listFrame.Position = UDim2.new(0.05, 0, 0.25, 0)
+    listFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+    listFrame.BorderSizePixel = 0
+    listFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+    listFrame.ScrollBarThickness = 6
+    Instance.new("UICorner", listFrame).CornerRadius = UDim.new(0, 6)
+    listFrame.Parent = frame
 
-        copyBtn.MouseButton1Click:Connect(function()
-            local text = "local remote = game:GetService(\"ReplicatedStorage\")" -- default
-            -- Kita coba buat string yang lebih akurat berdasarkan path
-            local pathParts = {}
-            for part in string.gmatch(info.Path, "[^%.]+") do
-                table.insert(pathParts, part)
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.Parent = listFrame
+    listLayout.Padding = UDim.new(0, 4)
+    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    -- Fungsi update list
+    local function UpdateList(remotes)
+        -- Hapus semua anak di listFrame (selain UIListLayout)
+        for _, child in ipairs(listFrame:GetChildren()) do
+            if child:IsA("TextButton") or child:IsA("TextLabel") then
+                child:Destroy()
             end
-            -- Buat script untuk mengakses remote
-            local pathStr = ""
-            for i, part in ipairs(pathParts) do
-                if i == 1 then
-                    pathStr = pathStr .. "game:GetService(\"" .. part .. "\")"
+        end
+
+        if #remotes == 0 then
+            local empty = Instance.new("TextLabel")
+            empty.Size = UDim2.new(1, 0, 0, 30)
+            empty.BackgroundTransparency = 1
+            empty.Text = "Tidak ada remote ditemukan."
+            empty.TextColor3 = Color3.fromRGB(200, 200, 200)
+            empty.Font = Enum.Font.Gotham
+            empty.TextSize = 12
+            empty.Parent = listFrame
+            status.Text = "Status: Tidak ditemukan"
+            return
+        end
+
+        -- Tampilkan setiap remote sebagai tombol (bisa diklik untuk info)
+        for _, data in ipairs(remotes) do
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, 0, 0, 28)
+            btn.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+            btn.Text = data.Name .. "  (" .. data.Type .. ")"
+            btn.TextColor3 = Color3.fromRGB(220, 220, 255)
+            btn.Font = Enum.Font.Gotham
+            btn.TextSize = 11
+            btn.TextXAlignment = Enum.TextXAlignment.Left
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+            btn.Parent = listFrame
+
+            -- Tooltip path
+            local pathLabel = Instance.new("TextLabel")
+            pathLabel.Size = UDim2.new(1, 0, 0, 14)
+            pathLabel.Position = UDim2.new(0, 5, 0, 28)
+            pathLabel.BackgroundTransparency = 1
+            pathLabel.Text = "📂 " .. data.Path
+            pathLabel.TextColor3 = Color3.fromRGB(150, 150, 180)
+            pathLabel.Font = Enum.Font.Gotham
+            pathLabel.TextSize = 9
+            pathLabel.TextXAlignment = Enum.TextXAlignment.Left
+            pathLabel.Parent = btn
+
+            -- Klik untuk menyalin nama remote ke clipboard
+            btn.MouseButton1Click:Connect(function()
+                local success, err = pcall(function()
+                    setclipboard(data.Name)
+                end)
+                if success then
+                    status.Text = "✅ Disalin: " .. data.Name
+                    status.TextColor3 = Color3.fromRGB(0, 255, 0)
                 else
-                    pathStr = pathStr .. ":FindFirstChild(\"" .. part .. "\")"
+                    status.Text = "❌ Gagal menyalin (clipboard tidak didukung)"
+                    status.TextColor3 = Color3.fromRGB(255, 0, 0)
                 end
-            end
-            local scriptText = "local remote = " .. pathStr .. "\n-- Remote type: " .. info.Class
-            if copyToClipboard(scriptText) then
-                print("Copied: " .. scriptText)
-            else
-                print("Copy failed")
-            end
-        end)
+                task.wait(2)
+                status.Text = "Status: " .. #remotes .. " remote ditemukan"
+                status.TextColor3 = Color3.fromRGB(200, 200, 200)
+            end)
+        end
+
+        -- Update canvas size
+        listFrame.CanvasSize = UDim2.new(0, 0, 0, #remotes * 35 + 10)
+        status.Text = "Status: " .. #remotes .. " remote ditemukan"
     end
+
+    -- ==================== EVENT HANDLER ====================
+
+    -- Tombol Scan
+    scanBtn.MouseButton1Click:Connect(function()
+        status.Text = "🔄 Scanning... Mohon tunggu"
+        status.TextColor3 = Color3.fromRGB(255, 200, 0)
+        local remotes = StartScan()
+        UpdateList(remotes)
+    end)
+
+    -- Tombol Copy All (copy semua nama remote ke clipboard, dipisahkan newline)
+    copyBtn.MouseButton1Click:Connect(function()
+        if #FoundRemotes == 0 then
+            status.Text = "⚠️ Belum ada remote. Scan dulu!"
+            status.TextColor3 = Color3.fromRGB(255, 200, 0)
+            return
+        end
+        local names = {}
+        for _, data in ipairs(FoundRemotes) do
+            table.insert(names, data.Name)
+        end
+        local text = table.concat(names, "\n")
+        local success, err = pcall(function()
+            setclipboard(text)
+        end)
+        if success then
+            status.Text = "✅ Berhasil menyalin " .. #FoundRemotes .. " nama remote!"
+            status.TextColor3 = Color3.fromRGB(0, 255, 0)
+        else
+            status.Text = "❌ Gagal menyalin (clipboard tidak didukung)"
+            status.TextColor3 = Color3.fromRGB(255, 0, 0)
+        end
+        task.wait(2)
+        status.Text = "Status: " .. #FoundRemotes .. " remote ditemukan"
+        status.TextColor3 = Color3.fromRGB(200, 200, 200)
+    end)
+
+    -- Jalankan scan otomatis pertama kali
+    task.wait(0.5)
+    scanBtn.MouseButton1Click:Fire()
+
+    return gui
 end
 
-refreshBtn.MouseButton1Click:Connect(populateList)
+-- ==================== EKSEKUSI ====================
 
-copyAllBtn.MouseButton1Click:Connect(function()
-    local remotes = getAllRemotes()
-    local lines = {}
-    for _, info in ipairs(remotes) do
-        table.insert(lines, info.Path .. " (" .. info.Class .. ")")
-    end
-    local fullText = table.concat(lines, "\n")
-    if copyToClipboard(fullText) then
-        print("Semua remote dicopy!")
-    else
-        print("Copy semua gagal")
-    end
+-- Hapus GUI lama jika ada
+pcall(function()
+    local old = LocalPlayer.PlayerGui:FindFirstChild("RemoteScanner")
+    if old then old:Destroy() end
 end)
 
--- Initial populate
-populateList()
-
-print("✅ Remote Scanner loaded! UI muncul di layar.")
+CreateUI()
+print("✅ Remote Scanner Character Body loaded. Klik tombol 'SCAN REMOTES' untuk mencari.")
