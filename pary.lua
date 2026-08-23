@@ -1,7 +1,7 @@
 -- ============================================
--- A2 ROBLOX INTRO UI LIBRARY v2
+-- A2 ROBLOX INTRO UI LIBRARY v3
 -- by Kimi Chat | StarterGui > ScreenGui > LocalScript
--- Sequence: Roblox Logo (113381647185328) → A2 Glow White
+-- Sequence: Roblox Logo (bulet) → A2 Glow White → Auto Close
 -- ============================================
 
 local TweenService = game:GetService("TweenService")
@@ -19,13 +19,17 @@ local CONFIG = {
 
 	-- Roblox Logo
 	RobloxLogoId = "rbxassetid://113381647185328",
-	LogoDuration = 2.0,      -- berapa lama logo ditampilkan
-	LogoFadeOut = 0.8,       -- durasi fade out logo
+	LogoDuration = 2.2,
+	LogoFadeOut = 0.8,
 
-	-- A2 Text
-	A2Color = Color3.fromRGB(255, 255, 255),      -- putih
-	A2GlowColor = Color3.fromRGB(200, 220, 255),  -- glow biru-putih
-	A2ShadowColor = Color3.fromRGB(100, 150, 255),-- shadow biru
+	-- A2 Text (Putih + Glow)
+	A2Color = Color3.fromRGB(255, 255, 255),
+	A2GlowColor = Color3.fromRGB(200, 220, 255),
+	A2ShadowColor = Color3.fromRGB(100, 150, 255),
+
+	-- Auto close
+	AutoCloseDelay = 5.5,    -- detik setelah A2 muncul, intro auto hilang
+	CloseFadeDuration = 1.0, -- durasi fade out intro
 
 	-- Colors
 	TealColor = Color3.fromRGB(0, 212, 170),
@@ -70,7 +74,6 @@ local screenGui = create("ScreenGui", {
 	DisplayOrder = 999,
 })
 
--- Background
 local background = create("Frame", {
 	Name = "Background",
 	Parent = screenGui,
@@ -88,7 +91,6 @@ local gridPattern = create("Frame", {
 	BackgroundTransparency = 1,
 	ZIndex = 2,
 })
-
 for i = 0, 20 do
 	create("Frame", {
 		Parent = gridPattern,
@@ -138,7 +140,7 @@ for i = 0, 100 do
 end
 
 -- ============================================
--- ROBLOX LOGO (PHASE 1)
+-- ROBLOX LOGO PHASE (BULET!)
 -- ============================================
 local logoPhase = create("Frame", {
 	Name = "LogoPhase",
@@ -151,7 +153,7 @@ local logoPhase = create("Frame", {
 local robloxLogo = create("ImageLabel", {
 	Name = "RobloxLogo",
 	Parent = logoPhase,
-	Size = UDim2.new(0, 200, 0, 200),
+	Size = UDim2.new(0, 180, 0, 180),
 	Position = UDim2.new(0.5, 0, 0.5, 0),
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	BackgroundTransparency = 1,
@@ -160,11 +162,17 @@ local robloxLogo = create("ImageLabel", {
 	ZIndex = 100,
 })
 
--- Logo glow ring
+-- BUAT LOGO JADI BULET
+local logoCorner = create("UICorner", {
+	Parent = robloxLogo,
+	CornerRadius = UDim.new(1, 0),  -- 1,0 = perfect circle
+})
+
+-- Ring glow di luar logo (juga bulet)
 local logoRing = create("Frame", {
 	Name = "LogoRing",
 	Parent = logoPhase,
-	Size = UDim2.new(0, 240, 0, 240),
+	Size = UDim2.new(0, 220, 0, 220),
 	Position = UDim2.new(0.5, 0, 0.5, 0),
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	BackgroundTransparency = 1,
@@ -176,6 +184,25 @@ local ringStroke = create("UIStroke", {
 	Parent = logoRing,
 	Color = Color3.fromRGB(255, 255, 255),
 	Thickness = 3,
+	Transparency = 1,
+})
+
+-- Inner ring (bulet juga)
+local innerRing = create("Frame", {
+	Name = "InnerRing",
+	Parent = logoPhase,
+	Size = UDim2.new(0, 200, 0, 200),
+	Position = UDim2.new(0.5, 0, 0.5, 0),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ZIndex = 98,
+})
+create("UICorner", {Parent = innerRing, CornerRadius = UDim.new(1, 0)})
+local innerStroke = create("UIStroke", {
+	Parent = innerRing,
+	Color = Color3.fromRGB(255, 215, 0),
+	Thickness = 2,
 	Transparency = 1,
 })
 
@@ -193,13 +220,12 @@ local a2Container = create("Frame", {
 	Visible = false,
 })
 
--- Glow layers (multiple white glows for strong effect)
+-- Glow layers
 local glowLayers = {
-	{ color = CONFIG.A2ShadowColor, offset = 12, transparency = 0.6, size = 140 },
-	{ color = CONFIG.A2GlowColor,   offset = 8,  transparency = 0.4, size = 130 },
-	{ color = Color3.fromRGB(255, 255, 255), offset = 4, transparency = 0.2, size = 125 },
+	{ color = CONFIG.A2ShadowColor, offset = 14, transparency = 0.7, size = 145 },
+	{ color = CONFIG.A2GlowColor,   offset = 10, transparency = 0.5, size = 135 },
+	{ color = Color3.fromRGB(255, 255, 255), offset = 5, transparency = 0.3, size = 128 },
 }
-
 for i, layer in ipairs(glowLayers) do
 	local glow = create("TextLabel", {
 		Parent = a2Container,
@@ -216,7 +242,7 @@ for i, layer in ipairs(glowLayers) do
 	})
 end
 
--- Main A2 text (white)
+-- Main A2 text
 local a2Text = create("TextLabel", {
 	Parent = a2Container,
 	Name = "A2Text",
@@ -230,28 +256,27 @@ local a2Text = create("TextLabel", {
 	ZIndex = 10,
 })
 
--- Strong white glow using UIStroke
+-- White glow stroke
 local a2Stroke = create("UIStroke", {
 	Parent = a2Text,
 	Color = Color3.fromRGB(255, 255, 255),
-	Thickness = 4,
+	Thickness = 5,
 	Transparency = 1,
 })
 
--- Outer glow frame
+-- Outer glow
 local a2GlowFrame = create("Frame", {
 	Parent = a2Container,
 	Name = "A2GlowFrame",
-	Size = UDim2.new(1, 60, 1, 60),
-	Position = UDim2.new(0, -30, 0, -30),
+	Size = UDim2.new(1, 80, 1, 80),
+	Position = UDim2.new(0, -40, 0, -40),
 	BackgroundTransparency = 1,
 	ZIndex = 9,
 })
-
 local a2GlowStroke = create("UIStroke", {
 	Parent = a2GlowFrame,
 	Color = Color3.fromRGB(255, 255, 255),
-	Thickness = 20,
+	Thickness = 25,
 	Transparency = 1,
 })
 
@@ -351,7 +376,6 @@ end
 -- PARTICLE SYSTEM
 -- ============================================
 local particleColors = {Color3.fromRGB(255,255,255), CONFIG.A2GlowColor, CONFIG.TealColor, CONFIG.OrangeColor, CONFIG.BlueColor}
-
 local function spawnParticle()
 	local color = particleColors[math.random(1, #particleColors)]
 	local size = randomRange(4, 10)
@@ -447,6 +471,35 @@ replayBtn.MouseLeave:Connect(function()
 end)
 
 -- ============================================
+-- AUTO CLOSE FUNCTION
+-- ============================================
+local function closeIntro()
+	-- Fade out everything
+	tween(background, {BackgroundTransparency = 1}, CONFIG.CloseFadeDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+
+	-- Fade out all children
+	for _, child in ipairs(background:GetDescendants()) do
+		if child:IsA("Frame") and child ~= background then
+			tween(child, {BackgroundTransparency = 1}, CONFIG.CloseFadeDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		elseif child:IsA("TextLabel") or child:IsA("TextButton") then
+			tween(child, {TextTransparency = 1}, CONFIG.CloseFadeDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		elseif child:IsA("ImageLabel") then
+			tween(child, {ImageTransparency = 1}, CONFIG.CloseFadeDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		elseif child:IsA("UIStroke") then
+			tween(child, {Transparency = 1}, CONFIG.CloseFadeDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		end
+	end
+
+	-- Destroy after fade
+	task.delay(CONFIG.CloseFadeDuration + 0.2, function()
+		if screenGui.Parent then
+			screenGui:Destroy()
+			print("[A2 Intro] Intro selesai & dihapus!")
+		end
+	end)
+end
+
+-- ============================================
 -- ANIMATION SEQUENCE
 -- ============================================
 local function playIntro()
@@ -454,13 +507,19 @@ local function playIntro()
 	robloxLogo.ImageTransparency = 1
 	robloxLogo.Size = UDim2.new(0, 150, 0, 150)
 	robloxLogo.Rotation = 0
-	logoRing.Size = UDim2.new(0, 180, 0, 180)
+
+	logoRing.Size = UDim2.new(0, 190, 0, 190)
 	ringStroke.Transparency = 1
 
+	innerRing.Size = UDim2.new(0, 170, 0, 170)
+	innerStroke.Transparency = 1
+
+	logoPhase.Visible = true
 	a2Container.Visible = false
 	a2Text.TextTransparency = 1
 	a2Stroke.Transparency = 1
 	a2GlowStroke.Transparency = 1
+
 	for _, child in ipairs(a2Container:GetChildren()) do
 		if child:IsA("TextLabel") and child.Name:find("Glow") then
 			child.TextTransparency = 1
@@ -469,35 +528,38 @@ local function playIntro()
 	subtitle.Text = ""
 	replayBtn.Visible = false
 
-	-- ========== PHASE 1: ROBLOX LOGO ==========
-	logoPhase.Visible = true
-
-	-- Fade in logo
+	-- ========== PHASE 1: ROBLOX LOGO BULET ==========
+	-- Fade in
 	tween(robloxLogo, {ImageTransparency = 0}, 0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
-	-- Scale up ring
-	tween(logoRing, {Size = UDim2.new(0, 260, 0, 260)}, 1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.2)
-	tween(ringStroke, {Transparency = 0.7}, 1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.3)
+	-- Rings expand
+	tween(logoRing, {Size = UDim2.new(0, 280, 0, 280)}, 1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.2)
+	tween(ringStroke, {Transparency = 0.6}, 1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.3)
+
+	tween(innerRing, {Size = UDim2.new(0, 240, 0, 240)}, 1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.3)
+	tween(innerStroke, {Transparency = 0.5}, 0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.4)
 
 	-- Pulse logo
-	tween(robloxLogo, {Size = UDim2.new(0, 220, 0, 220)}, 1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 0.5)
-	task.wait(1.5)
+	tween(robloxLogo, {Size = UDim2.new(0, 210, 0, 210)}, 1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 0.5)
+	task.wait(1.2)
 	if not robloxLogo.Parent then return end
-	tween(robloxLogo, {Size = UDim2.new(0, 200, 0, 200)}, 1.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+	tween(robloxLogo, {Size = UDim2.new(0, 190, 0, 190)}, 1.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 
-	-- Wait then fade out
-	task.wait(CONFIG.LogoDuration - 1.5)
+	-- Wait
+	task.wait(CONFIG.LogoDuration - 1.2)
 	if not robloxLogo.Parent then return end
 
 	-- Fade out logo
-	tween(robloxLogo, {ImageTransparency = 1, Size = UDim2.new(0, 300, 0, 300), Rotation = 15}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-	tween(logoRing, {Size = UDim2.new(0, 400, 0, 400)}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	tween(robloxLogo, {ImageTransparency = 1, Size = UDim2.new(0, 320, 0, 320), Rotation = 20}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	tween(logoRing, {Size = UDim2.new(0, 450, 0, 450)}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 	tween(ringStroke, {Transparency = 1}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	tween(innerRing, {Size = UDim2.new(0, 380, 0, 380)}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	tween(innerStroke, {Transparency = 1}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 
 	task.wait(CONFIG.LogoFadeOut + 0.2)
 	logoPhase.Visible = false
 
-	-- ========== PHASE 2: A2 GLOW WHITE ==========
+	-- ========== PHASE 2: A2 GLOW PUTIH ==========
 	a2Container.Visible = true
 	a2Container.Size = UDim2.new(0, 300, 0, 150)
 	a2Container.Position = UDim2.new(0.5, 0, 0.5, 40)
@@ -511,16 +573,16 @@ local function playIntro()
 	-- Reveal glow layers
 	for i, child in ipairs(a2Container:GetChildren()) do
 		if child:IsA("TextLabel") and child.Name:find("Glow") then
-			tween(child, {TextTransparency = 0.3}, 0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.2 + (i * 0.08))
+			tween(child, {TextTransparency = 0.35}, 0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.2 + (i * 0.08))
 		end
 	end
 
 	-- Reveal main text
 	tween(a2Text, {TextTransparency = 0}, 0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.3)
 
-	-- Reveal strokes (glow effect)
-	tween(a2Stroke, {Transparency = 0.1}, 0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.4)
-	tween(a2GlowStroke, {Transparency = 0.6}, 1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.5)
+	-- Reveal strokes
+	tween(a2Stroke, {Transparency = 0.05}, 0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.4)
+	tween(a2GlowStroke, {Transparency = 0.55}, 1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.5)
 
 	-- Bounce back
 	tween(a2Container, {
@@ -541,21 +603,28 @@ local function playIntro()
 	-- Pulse glow
 	task.delay(2, function()
 		while a2Text.Parent and a2Text.TextTransparency < 0.5 do
-			tween(a2GlowStroke, {Transparency = 0.3}, 1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+			tween(a2GlowStroke, {Transparency = 0.25}, 1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 			tween(a2Stroke, {Transparency = 0}, 1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 			task.wait(1.2)
 			if not a2Text.Parent then break end
-			tween(a2GlowStroke, {Transparency = 0.7}, 1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-			tween(a2Stroke, {Transparency = 0.2}, 1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+			tween(a2GlowStroke, {Transparency = 0.65}, 1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+			tween(a2Stroke, {Transparency = 0.15}, 1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 			task.wait(1.2)
 		end
 	end)
 
-	-- Show replay
+	-- Show replay button
 	task.delay(3.5, function()
 		if replayBtn.Parent then
 			replayBtn.Visible = true
 			tween(replayBtn, {TextTransparency = 0}, 0.5)
+		end
+	end)
+
+	-- ========== AUTO CLOSE ==========
+	task.delay(CONFIG.AutoCloseDelay, function()
+		if screenGui.Parent then
+			closeIntro()
 		end
 	end)
 end
@@ -566,8 +635,9 @@ end
 playIntro()
 
 replayBtn.MouseButton1Click:Connect(function()
+	-- Cancel auto close if replay clicked
 	replayBtn.Visible = false
 	playIntro()
 end)
 
-print("[A2 Intro v2] Loaded! Sequence: Roblox Logo → A2 Glow White")
+print("[A2 Intro v3] Loaded! Logo bulet → A2 Glow → Auto Close")
