@@ -1,6 +1,6 @@
 --[[
-  NO MERCY — "VIOLENCE DISTRICT" (ZIAANHUB X FULL BACKEND INTEGRATED)
-  UI: Orion Library (MarV) — Logo, Banner, Text Glow, & Full ZiaanHub Features
+  NO MERCY — "VIOLENCE DISTRICT" (All Texts Glow/Pulse Enabled)
+  UI: Orion Library (MarV) — Logo, Banner, Full ZiaanHub Features & Global Text Glow
 ]]
 
 local ICON = {
@@ -357,7 +357,7 @@ end
 onCloseRequest = function() confirmClose(true) end
 
 -- ============================================================
---  CORE BACKEND LOGIC (Auto Skillcheck, Parry, ToF, GenBoost, dll.)
+--  CORE BACKEND LOGIC
 -- ============================================================
 local Character, Humanoid, Root
 local function updateChar(char)
@@ -550,16 +550,17 @@ task.spawn(function()
 end)
 
 -- ============================================================
---  EFEK TEKS BERCAYA (GLOW PULSE)
+--  EFEK TEKS BERCAYA SEMUA (GLOBAL TEXT GLOW PULSE)
 -- ============================================================
 task.spawn(function()
     while true do
         local main = FindMainWindow()
         if main then
+            -- Menerapkan efek glow menyala berdenyut ke SEMUA TextLabel di dalam menu UI Library
             for _, obj in ipairs(main:GetDescendants()) do
-                if obj:IsA("TextLabel") and (obj.Text == "NO MERCY — VIOLENCE DISTRICT" or obj.Text:find("Aimbot") or obj.Text:find("Killer") or obj.Text:find("Survivor") or obj.Text:find("Parry")) then
+                if obj:IsA("TextLabel") then
                     local alpha = (math.sin(os.clock() * 3) + 1) / 2
-                    obj.TextColor3 = Color3.fromRGB(255, 255, 255):Lerp(Color3.fromRGB(120, 200, 255), alpha)
+                    obj.TextColor3 = Color3.fromRGB(240, 240, 240):Lerp(Color3.fromRGB(100, 210, 255), alpha)
                 end
             end
         end
@@ -642,7 +643,7 @@ local SettingsSec = SettingsTab:AddSection({ Name = "Pengaturan" })
 SettingsSec:AddButton({ Name = "Tutup UI (Close)", Callback = function() confirmClose() end })
 
 -- ============================================================
---  BACKGROUND HEARTBEAT LOOP (Auto Attack Killer, dll.)
+--  BACKGROUND HEARTBEAT LOOP
 -- ============================================================
 RunService.Heartbeat:Connect(function()
     if VD.Destroyed then return end
@@ -666,4 +667,4 @@ RunService.Heartbeat:Connect(function()
 end)
 
 VD_Notify("NO MERCY", "Violence District Loaded Successfully!", 4)
-print("[NO MERCY] Violence District loaded successfully with full ZiaanHub features & Orion UI!")
+print("[NO MERCY] Violence District loaded successfully with global text glow and full features!")
