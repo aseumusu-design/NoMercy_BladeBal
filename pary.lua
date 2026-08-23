@@ -1,48 +1,38 @@
--- [[ AUTO COPY PATH REMOTE SKILL VIOLENCE DISTRICT ]]
--- Memakai __namecall biar semua remote tanpa terkecuali ke-detect
+-- [[ AUTO 100x SKILL SAAT KAMU KLIK SKILL ]]
+-- Buat Killer Hidden (Violence District)
 
-local mt = getrawmetatable(game)
-if not mt then
-    print("Gagal dapat metatable!")
-    return
-end
+local RS = game:GetService("ReplicatedStorage")
 
-setreadonly(mt, false)
-local oldNamecall = mt.__namecall
+-- Ambil remote skill yang udah kita temukan
+local m2Remote = RS.Remotes.Killers.Hidden.M2
+local leapRemote = RS.Remotes.Killers.Hidden.Leap
 
-mt.__namecall = function(self, ...)
-    local method = getnamecallmethod()
-    
-    -- Tangkap FireServer (RemoteEvent)
-    if method == "FireServer" and self:IsA("RemoteEvent") then
-        local path = self:GetFullName()
-        print("🔴 [REMOTE EVENT] Path: " .. path)
-        print("🟡 Data yang dikirim: ", ...)
-        -- Copy ke clipboard
-        if setclipboard then
-            setclipboard(path)
-        elseif toclipboard then
-            toclipboard(path)
-        end
-        print("✅ Path sudah di-copy ke clipboard!")
-    
-    -- Tangkap InvokeServer (RemoteFunction)
-    elseif method == "InvokeServer" and self:IsA("RemoteFunction") then
-        local path = self:GetFullName()
-        print("🔵 [REMOTE FUNCTION] Path: " .. path)
-        print("🟡 Data yang dikirim: ", ...)
-        if setclipboard then
-            setclipboard(path)
-        elseif toclipboard then
-            toclipboard(path)
-        end
-        print("✅ Path sudah di-copy ke clipboard!")
+-- Simpan fungsi asli biar ga error
+local originalM2 = m2Remote.FireServer
+local originalLeap = leapRemote.FireServer
+
+-- === OVERRIDE FUNGSI M2 ===
+m2Remote.FireServer = function(self, ...)
+    print("🔪 [M2] Terdeteksi! Langsung spam 100x...")
+    for i = 1, 100 do
+        originalM2(self, ...)  -- Panggil skill asli
+        task.wait(0.05)        -- Jeda 0.05 detik biar ga lag
     end
-    
-    -- Jalankan fungsi aslinya biar skill tetap kepakai
-    return oldNamecall(self, ...)
+    print("✅ [M2] 100x selesai!")
 end
 
-print("🚀 SCRIPT AKTIF! Sekarang setiap kali kamu pakai skill apa pun,")
-print("📋 path remote skill akan otomatis tercopy ke clipboard.")
-print("📌 Cek console ini untuk lihat path-nya.")
+-- === OVERRIDE FUNGSI LEAP ===
+leapRemote.FireServer = function(self, ...)
+    print("🦘 [Leap] Terdeteksi! Langsung spam 100x...")
+    for i = 1, 100 do
+        originalLeap(self, ...)
+        task.wait(0.08)
+    end
+    print("✅ [Leap] 100x selesai!")
+end
+
+print("======================================")
+print("✅ SCRIPT AKTIF!")
+print("Sekarang setiap kamu klik skill M2 / Leap,")
+print("otomatis bakal kepakai 100 KALI LANGSUNG!")
+print("======================================")
