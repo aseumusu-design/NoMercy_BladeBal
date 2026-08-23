@@ -1,40 +1,58 @@
--- [[ SPAM SEMUA SKILL HIDDEN 100x (Termasuk Ultimate) ]]
+-- [[ SPAM LEAP + M2 HIDDEN - TANPA JEDA ]]
 -- Copas ke executor, Execute, lalu main.
 
 local RS = game:GetService("ReplicatedStorage")
-local folder = RS:FindFirstChild("Remotes") and RS.Remotes:FindFirstChild("Killers") and RS.Remotes.Killers:FindFirstChild("Hidden")
+local leap = RS.Remotes.Killers.Hidden.Leap
+local m2 = RS.Remotes.Killers.Hidden.M2
 
-if not folder then
-    print("❌ Folder Hidden tidak ditemukan! Pastikan kamu pakai Killer Hidden.")
-    return
-end
-
--- Kumpulkan semua RemoteEvent di folder Hidden
-local remotes = {}
-for _, obj in ipairs(folder:GetDescendants()) do
-    if obj:IsA("RemoteEvent") then
-        table.insert(remotes, obj)
+-- Fungsi reset cooldown di semua tabel memory
+local function resetCD()
+    local count = 0
+    for _, v in pairs(getgc(true)) do
+        if type(v) == "table" then
+            -- Cari properti yang mirip cooldown
+            if rawget(v, "Cooldown") ~= nil then
+                rawset(v, "Cooldown", 0)
+                count = count + 1
+            end
+            if rawget(v, "cooldown") ~= nil then
+                rawset(v, "cooldown", 0)
+                count = count + 1
+            end
+            if rawget(v, "CD") ~= nil then
+                rawset(v, "CD", 0)
+                count = count + 1
+            end
+            if rawget(v, "LastUsed") ~= nil then
+                rawset(v, "LastUsed", 0)
+                count = count + 1
+            end
+            if rawget(v, "lastUsed") ~= nil then
+                rawset(v, "lastUsed", 0)
+                count = count + 1
+            end
+        end
+    end
+    if count > 0 then
+        -- print("✅ CD reset: " .. count .. " nilai diubah.")
     end
 end
 
-if #remotes == 0 then
-    print("❌ Tidak ada RemoteEvent ditemukan.")
-    return
-end
-
-print("✅ Ditemukan " .. #remotes .. " remote skill Hidden.")
-
--- Spam masing-masing remote 100 kali
-for _, remote in ipairs(remotes) do
-    local name = remote.Name
-    print("🔥 Memulai spam: " .. name)
-    for i = 1, 100 do
-        pcall(function()
-            remote:FireServer()
-        end)
-        task.wait(0.02) -- delay super cepat
+-- Jalankan reset CD setiap 0.5 detik (biar selalu 0)
+task.spawn(function()
+    while task.wait(0.5) do
+        resetCD()
     end
-    print("✅ Selesai spam " .. name .. " 100x")
-end
+end)
 
-print("🎉 SEMUA SKILL (termasuk ULTIMATE) SUDAH DI-SPAM 100 KALI!")
+print("🔁 CD Auto-Reset aktif!")
+
+-- Spam Leap + M2 setiap 0.01 detik (sangat cepat)
+print("🚀 Mulai spam Leap + M2 tanpa henti...")
+while task.wait(0.01) do
+    pcall(leap.FireServer, leap)
+    pcall(m2.FireServer, m2)
+    -- Tambahkan skill lain jika mau:
+    -- local m2Hit = RS.Remotes.Killers.Hidden.m2HitVM
+    -- pcall(m2Hit.FireServer, m2Hit)
+end
