@@ -1,38 +1,40 @@
--- [[ AUTO 100x SKILL SAAT KAMU KLIK SKILL ]]
--- Buat Killer Hidden (Violence District)
+-- [[ SPAM SEMUA SKILL HIDDEN 100x (Termasuk Ultimate) ]]
+-- Copas ke executor, Execute, lalu main.
 
 local RS = game:GetService("ReplicatedStorage")
+local folder = RS:FindFirstChild("Remotes") and RS.Remotes:FindFirstChild("Killers") and RS.Remotes.Killers:FindFirstChild("Hidden")
 
--- Ambil remote skill yang udah kita temukan
-local m2Remote = RS.Remotes.Killers.Hidden.M2
-local leapRemote = RS.Remotes.Killers.Hidden.Leap
-
--- Simpan fungsi asli biar ga error
-local originalM2 = m2Remote.FireServer
-local originalLeap = leapRemote.FireServer
-
--- === OVERRIDE FUNGSI M2 ===
-m2Remote.FireServer = function(self, ...)
-    print("🔪 [M2] Terdeteksi! Langsung spam 100x...")
-    for i = 1, 100 do
-        originalM2(self, ...)  -- Panggil skill asli
-        task.wait(0.05)        -- Jeda 0.05 detik biar ga lag
-    end
-    print("✅ [M2] 100x selesai!")
+if not folder then
+    print("❌ Folder Hidden tidak ditemukan! Pastikan kamu pakai Killer Hidden.")
+    return
 end
 
--- === OVERRIDE FUNGSI LEAP ===
-leapRemote.FireServer = function(self, ...)
-    print("🦘 [Leap] Terdeteksi! Langsung spam 100x...")
-    for i = 1, 100 do
-        originalLeap(self, ...)
-        task.wait(0.08)
+-- Kumpulkan semua RemoteEvent di folder Hidden
+local remotes = {}
+for _, obj in ipairs(folder:GetDescendants()) do
+    if obj:IsA("RemoteEvent") then
+        table.insert(remotes, obj)
     end
-    print("✅ [Leap] 100x selesai!")
 end
 
-print("======================================")
-print("✅ SCRIPT AKTIF!")
-print("Sekarang setiap kamu klik skill M2 / Leap,")
-print("otomatis bakal kepakai 100 KALI LANGSUNG!")
-print("======================================")
+if #remotes == 0 then
+    print("❌ Tidak ada RemoteEvent ditemukan.")
+    return
+end
+
+print("✅ Ditemukan " .. #remotes .. " remote skill Hidden.")
+
+-- Spam masing-masing remote 100 kali
+for _, remote in ipairs(remotes) do
+    local name = remote.Name
+    print("🔥 Memulai spam: " .. name)
+    for i = 1, 100 do
+        pcall(function()
+            remote:FireServer()
+        end)
+        task.wait(0.02) -- delay super cepat
+    end
+    print("✅ Selesai spam " .. name .. " 100x")
+end
+
+print("🎉 SEMUA SKILL (termasuk ULTIMATE) SUDAH DI-SPAM 100 KALI!")
