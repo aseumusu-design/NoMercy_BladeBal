@@ -1,42 +1,38 @@
--- [[ DETEKTOR REMOTE SKILL SEJATI (FIXED) ]]
--- Tanpa error, menggunakan tabel untuk tracking.
+-- [[ DETEKTOR SUPER AMAN ]]
+-- Menangkap semua remote yang dipakai, tanpa error.
 
-local hooked = {} -- tabel untuk menyimpan remote yang sudah di-hook
+local mt = getrawmetatable(game)
+if not mt then
+    print("❌ Gagal dapat metatable. Executor tidak support.")
+    return
+end
 
-local function hookRemote(obj)
-    if obj:IsA("RemoteEvent") and not hooked[obj] then
-        hooked[obj] = true
-        local old = obj.FireServer
-        obj.FireServer = function(self, ...)
-            local path = self:GetFullName()
-            print("🔥 REMOTE TERPAKAI: " .. path)
-            print("📦 ARGUMEN:", ...)
+setreadonly(mt, false)
+local oldNamecall = mt.__namecall
+
+mt.__namecall = function(self, ...)
+    local method = getnamecallmethod()
+    
+    -- Tangkap FireServer (RemoteEvent) dan InvokeServer (RemoteFunction)
+    if (method == "FireServer" or method == "InvokeServer") and self:IsA("RemoteEvent") then
+        local path = self:GetFullName()
+        -- Print dengan warna beda biar kelihatan
+        print("🔥 REMOTE TERPAKAI: " .. path)
+        print("📦 ARGUMEN:", ...)
+        -- Copy ke clipboard
+        pcall(function()
             if setclipboard then setclipboard(path) end
-            print("📋 Path sudah di-copy ke clipboard!")
-            return old(self, ...)
-        end
+        end)
+        print("📋 Path sudah di-copy ke clipboard!")
     end
+    
+    return oldNamecall(self, ...)
 end
-
-local function scanAll(parent)
-    for _, obj in ipairs(parent:GetDescendants()) do
-        hookRemote(obj)
-    end
-end
-
--- Scan semua yang sudah ada
-scanAll(game)
-
--- Pantau objek baru
-game.DescendantAdded:Connect(function(child)
-    task.wait(0.05) -- biar stabil
-    hookRemote(child)
-end)
 
 print("============================================")
 print("✅ DETEKTOR AKTIF (tanpa error)!")
-print("📌 Sekarang main game, pakai Killer Hidden.")
-print("📌 Klik tombol skill M2 / Leap / Ultimate di layar.")
+print("📌 Sekarang main Violence District, pilih Killer Hidden.")
+print("📌 Klik tombol skill M2 / Leap / Ultimate di HUD.")
 print("📌 Lihat console: akan muncul path dan argumen.")
 print("📌 Path-nya otomatis ke-copy, paste ke sini.")
 print("============================================")
