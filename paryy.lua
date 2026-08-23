@@ -1,38 +1,41 @@
--- [[ DETEKTOR SUPER AMAN ]]
--- Menangkap semua remote yang dipakai, tanpa error.
+-- [[ SPAM SKILL 100x DENGAN ARGUMEN ASLI ]]
+-- Saat kamu klik tombol skill di HUD, otomatis di-spam 100x.
 
-local mt = getrawmetatable(game)
-if not mt then
-    print("❌ Gagal dapat metatable. Executor tidak support.")
-    return
-end
+local RS = game:GetService("ReplicatedStorage")
 
-setreadonly(mt, false)
-local oldNamecall = mt.__namecall
+-- Ambil remote skill yang sudah kita ketahui
+local m2Remote = RS.Remotes.Killers.Hidden.M2
+local leapRemote = RS.Remotes.Killers.Hidden.Leap
 
-mt.__namecall = function(self, ...)
-    local method = getnamecallmethod()
+-- Fungsi untuk meng-override FireServer dengan aman
+local function overrideRemote(remote)
+    if not remote then return end
     
-    -- Tangkap FireServer (RemoteEvent) dan InvokeServer (RemoteFunction)
-    if (method == "FireServer" or method == "InvokeServer") and self:IsA("RemoteEvent") then
-        local path = self:GetFullName()
-        -- Print dengan warna beda biar kelihatan
-        print("🔥 REMOTE TERPAKAI: " .. path)
-        print("📦 ARGUMEN:", ...)
-        -- Copy ke clipboard
-        pcall(function()
-            if setclipboard then setclipboard(path) end
-        end)
-        print("📋 Path sudah di-copy ke clipboard!")
+    -- Simpan fungsi asli
+    local originalFire = remote.FireServer
+    
+    -- Override
+    remote.FireServer = function(self, ...)
+        -- Argumen asli dari game (misal posisi, target, dll)
+        local args = {...}
+        print("🔥 Skill " .. self.Name .. " dipakai dengan argumen:", args)
+        
+        -- Jalankan 100 kali
+        for i = 1, 100 do
+            pcall(originalFire, self, unpack(args))
+            task.wait(0.015) -- delay 15ms biar ga overload
+        end
+        print("✅ Selesai spam " .. self.Name .. " 100x!")
     end
-    
-    return oldNamecall(self, ...)
 end
 
-print("============================================")
-print("✅ DETEKTOR AKTIF (tanpa error)!")
-print("📌 Sekarang main Violence District, pilih Killer Hidden.")
-print("📌 Klik tombol skill M2 / Leap / Ultimate di HUD.")
-print("📌 Lihat console: akan muncul path dan argumen.")
-print("📌 Path-nya otomatis ke-copy, paste ke sini.")
-print("============================================")
+-- Override kedua remote
+overrideRemote(m2Remote)
+overrideRemote(leapRemote)
+
+print("==========================================")
+print("✅ SCRIPT AKTIF!")
+print("📌 Sekarang main game, pilih Killer Hidden.")
+print("📌 Klik tombol M2 atau Leap di HUD (seperti biasa).")
+print("📌 Skill akan otomatis kepakai 100 KALI setiap kali kamu klik!")
+print("==========================================")
