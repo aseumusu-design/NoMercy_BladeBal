@@ -1,7 +1,7 @@
 -- ============================================
--- A2 ROBLOX INTRO UI LIBRARY v7 - FULLSCREEN HP
+-- A2 ROBLOX INTRO UI LIBRARY v8 - FULLSCREEN 100%
 -- by Kimi Chat | StarterGui > ScreenGui > LocalScript
--- Fullscreen + Cyberpunk BG + Teks A2 LEBAR
+-- FULLSCREEN + Cyberpunk + Logo Bulet + A2 Lebar Glow Putih + Auto Close
 -- ============================================
 
 local TweenService = game:GetService("TweenService")
@@ -67,7 +67,7 @@ local function randomRange(min, max)
 end
 
 -- ============================================
--- BUILD UI - FULLSCREEN
+-- BUILD UI - FULLSCREEN 100%
 -- ============================================
 local screenGui = create("ScreenGui", {
 	Name = "A2IntroUI",
@@ -77,18 +77,19 @@ local screenGui = create("ScreenGui", {
 	DisplayOrder = 999,
 })
 
+-- BACKGROUND FULLSCREEN - BENAR BENAR 1,0,1,0
 local background = create("Frame", {
 	Name = "Background",
 	Parent = screenGui,
-	-- FULLSCREEN
 	Size = UDim2.new(1, 0, 1, 0),
+	Position = UDim2.new(0, 0, 0, 0),
 	BackgroundColor3 = CONFIG.BackgroundColor,
 	BorderSizePixel = 0,
 	ZIndex = 1,
 })
 
 -- ============================================
--- CYBERPUNK BACKGROUND - FULLSCREEN
+-- CYBERPUNK BACKGROUND EFFECTS
 -- ============================================
 
 -- Diagonal neon lines
@@ -283,7 +284,7 @@ for i = 0, 100 do
 end
 
 -- ============================================
--- ROBLOX LOGO PHASE (BULET - FULLSCREEN)
+-- ROBLOX LOGO PHASE (BULET)
 -- ============================================
 local logoPhase = create("Frame", {
 	Name = "LogoPhase",
@@ -344,12 +345,11 @@ local innerStroke = create("UIStroke", {
 })
 
 -- ============================================
--- A2 TEXT CONTAINER - LEBAR (FULLSCREEN)
+-- A2 TEXT CONTAINER - LEBAR
 -- ============================================
 local a2Container = create("Frame", {
 	Name = "A2Container",
 	Parent = background,
-	-- LEBAR: 700px
 	Size = UDim2.new(0, 700, 0, 250),
 	Position = UDim2.new(0.5, 0, 0.5, 0),
 	AnchorPoint = Vector2.new(0.5, 0.5),
@@ -429,7 +429,7 @@ local subtitle = create("TextLabel", {
 })
 
 -- ============================================
--- CORNER BRACKETS (cyberpunk - fullscreen)
+-- CORNER BRACKETS
 -- ============================================
 local function createBracket(position, anchor)
 	local bracket = create("Frame", {
@@ -474,7 +474,7 @@ createBracket(UDim2.new(0, 20, 1, -20), Vector2.new(0, 1))
 createBracket(UDim2.new(1, -20, 1, -20), Vector2.new(1, 1))
 
 -- ============================================
--- FLOATING BLOCKS (fullscreen)
+-- FLOATING BLOCKS
 -- ============================================
 local blockColors = {CONFIG.RedColor, CONFIG.TealColor, CONFIG.BlueColor, CONFIG.OrangeColor}
 local blockPositions = {
@@ -506,7 +506,7 @@ for i = 1, 4 do
 end
 
 -- ============================================
--- PARTICLE SYSTEM (fullscreen)
+-- PARTICLE SYSTEM
 -- ============================================
 local particleColors = {Color3.fromRGB(255,255,255), CONFIG.A2GlowColor, CONFIG.TealColor, CONFIG.OrangeColor, CONFIG.BlueColor}
 local function spawnParticle()
@@ -541,7 +541,7 @@ task.spawn(function()
 end)
 
 -- ============================================
--- GLITCH EFFECT (fullscreen)
+-- GLITCH EFFECT
 -- ============================================
 local glitchFrame = create("Frame", {
 	Name = "GlitchOverlay",
@@ -573,7 +573,7 @@ task.spawn(function()
 end)
 
 -- ============================================
--- REPLAY BUTTON (fullscreen)
+-- REPLAY BUTTON
 -- ============================================
 local replayBtn = create("TextButton", {
 	Parent = background,
@@ -756,4 +756,4 @@ replayBtn.MouseButton1Click:Connect(function()
 	playIntro()
 end)
 
-print("[A2 Intro v7] Fullscreen HP Loaded! Cyberpunk + Teks LEBAR + Auto Close")
+print("[A2 Intro v8] FULLSCREEN 100% Loaded! Cyberpunk + Logo Bulet + A2 Lebar Glow + Auto Close")
