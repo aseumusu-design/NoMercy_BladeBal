@@ -1,7 +1,7 @@
 -- ============================================
--- A2 ROBLOX INTRO UI LIBRARY v5 - WIDE TEXT
+-- A2 ROBLOX INTRO UI LIBRARY v6 - SMALL FRAME
 -- by Kimi Chat | StarterGui > ScreenGui > LocalScript
--- Teks A2 LEBAR seperti gambar 2
+-- Intro seukuran frame kecil di tengah (kayak gambar 2)
 -- ============================================
 
 local TweenService = game:GetService("TweenService")
@@ -77,23 +77,68 @@ local screenGui = create("ScreenGui", {
 	DisplayOrder = 999,
 })
 
-local background = create("Frame", {
-	Name = "Background",
+-- Dark overlay background (transparan gelap di belakang frame)
+local darkOverlay = create("Frame", {
+	Name = "DarkOverlay",
 	Parent = screenGui,
 	Size = UDim2.new(1, 0, 1, 0),
-	BackgroundColor3 = CONFIG.BackgroundColor,
+	BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+	BackgroundTransparency = 0.3,
 	BorderSizePixel = 0,
 	ZIndex = 1,
 })
 
+-- MAIN INTRO FRAME (kecil di tengah, kayak gambar 2)
+local introFrame = create("Frame", {
+	Name = "IntroFrame",
+	Parent = screenGui,
+	-- Ukuran lebih kecil dari fullscreen
+	Size = UDim2.new(0.75, 0, 0.65, 0),
+	Position = UDim2.new(0.5, 0, 0.5, 0),
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	BackgroundColor3 = CONFIG.BackgroundColor,
+	BorderSizePixel = 0,
+	ZIndex = 2,
+})
+
+-- Rounded corners untuk frame
+local frameCorner = create("UICorner", {
+	Parent = introFrame,
+	CornerRadius = UDim.new(0, 16),
+})
+
+-- Border/frame abu-abu di sekitar (kayak gambar 2)
+local frameBorder = create("UIStroke", {
+	Parent = introFrame,
+	Color = Color3.fromRGB(80, 80, 80),
+	Thickness = 4,
+})
+
+-- Inner shadow/glow di frame
+local innerGlow = create("Frame", {
+	Name = "InnerGlow",
+	Parent = introFrame,
+	Size = UDim2.new(1, 0, 1, 0),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ZIndex = 3,
+})
+create("UICorner", {Parent = innerGlow, CornerRadius = UDim.new(0, 16)})
+local innerGlowStroke = create("UIStroke", {
+	Parent = innerGlow,
+	Color = CONFIG.NeonCyan,
+	Thickness = 1,
+	Transparency = 0.8,
+})
+
 -- ============================================
--- CYBERPUNK BACKGROUND
+-- CYBERPUNK BACKGROUND (DI DALAM FRAME)
 -- ============================================
 
 -- Diagonal neon lines
 local diagLines = create("Frame", {
 	Name = "DiagLines",
-	Parent = background,
+	Parent = introFrame,
 	Size = UDim2.new(1, 0, 1, 0),
 	BackgroundTransparency = 1,
 	ZIndex = 2,
@@ -124,7 +169,7 @@ end
 -- Horizontal scan bars
 local scanBars = create("Frame", {
 	Name = "ScanBars",
-	Parent = background,
+	Parent = introFrame,
 	Size = UDim2.new(1, 0, 1, 0),
 	BackgroundTransparency = 1,
 	ZIndex = 2,
@@ -156,7 +201,7 @@ end
 -- Vertical neon pillars
 local pillars = create("Frame", {
 	Name = "Pillars",
-	Parent = background,
+	Parent = introFrame,
 	Size = UDim2.new(1, 0, 1, 0),
 	BackgroundTransparency = 1,
 	ZIndex = 2,
@@ -188,7 +233,7 @@ end
 -- Digital rain
 local digitalRain = create("Frame", {
 	Name = "DigitalRain",
-	Parent = background,
+	Parent = introFrame,
 	Size = UDim2.new(1, 0, 1, 0),
 	BackgroundTransparency = 1,
 	ZIndex = 3,
@@ -216,28 +261,28 @@ local function spawnRainDrop()
 end
 
 task.spawn(function()
-	while background.Parent do
+	while introFrame.Parent do
 		spawnRainDrop()
 		task.wait(randomRange(0.05, 0.2))
 	end
 end)
 
--- Corner neon glows
+-- Corner neon glows (di dalam frame)
 local cornerGlows = {}
 local cornerPositions = {
-	{UDim2.new(0, 0, 0, 0), UDim2.new(0, 150, 0, 2)},
-	{UDim2.new(1, -150, 0, 0), UDim2.new(0, 150, 0, 2)},
-	{UDim2.new(0, 0, 1, -2), UDim2.new(0, 150, 0, 2)},
-	{UDim2.new(1, -150, 1, -2), UDim2.new(0, 150, 0, 2)},
-	{UDim2.new(0, 0, 0, 0), UDim2.new(0, 2, 0, 100)},
-	{UDim2.new(1, -2, 0, 0), UDim2.new(0, 2, 0, 100)},
-	{UDim2.new(0, 0, 1, -100), UDim2.new(0, 2, 0, 100)},
-	{UDim2.new(1, -2, 1, -100), UDim2.new(0, 2, 0, 100)},
+	{UDim2.new(0, 0, 0, 0), UDim2.new(0, 100, 0, 2)},
+	{UDim2.new(1, -100, 0, 0), UDim2.new(0, 100, 0, 2)},
+	{UDim2.new(0, 0, 1, -2), UDim2.new(0, 100, 0, 2)},
+	{UDim2.new(1, -100, 1, -2), UDim2.new(0, 100, 0, 2)},
+	{UDim2.new(0, 0, 0, 0), UDim2.new(0, 2, 0, 80)},
+	{UDim2.new(1, -2, 0, 0), UDim2.new(0, 2, 0, 80)},
+	{UDim2.new(0, 0, 1, -80), UDim2.new(0, 2, 0, 80)},
+	{UDim2.new(1, -2, 1, -80), UDim2.new(0, 2, 0, 80)},
 }
 
 for i, pos in ipairs(cornerPositions) do
 	local glow = create("Frame", {
-		Parent = background,
+		Parent = introFrame,
 		Name = "CornerGlow" .. i,
 		Position = pos[1],
 		Size = pos[2],
@@ -250,7 +295,7 @@ for i, pos in ipairs(cornerPositions) do
 end
 
 task.spawn(function()
-	while background.Parent do
+	while introFrame.Parent do
 		for _, glow in ipairs(cornerGlows) do
 			tween(glow, {BackgroundTransparency = 0.7}, 1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 		end
@@ -265,7 +310,7 @@ end)
 -- Scanlines
 local scanlines = create("Frame", {
 	Name = "Scanlines",
-	Parent = background,
+	Parent = introFrame,
 	Size = UDim2.new(1, 0, 1, 0),
 	BackgroundTransparency = 1,
 	ZIndex = 50,
@@ -282,11 +327,11 @@ for i = 0, 100 do
 end
 
 -- ============================================
--- ROBLOX LOGO PHASE (BULET)
+-- ROBLOX LOGO PHASE (BULET - DI DALAM FRAME)
 -- ============================================
 local logoPhase = create("Frame", {
 	Name = "LogoPhase",
-	Parent = background,
+	Parent = introFrame,
 	Size = UDim2.new(1, 0, 1, 0),
 	BackgroundTransparency = 1,
 	ZIndex = 100,
@@ -295,7 +340,7 @@ local logoPhase = create("Frame", {
 local robloxLogo = create("ImageLabel", {
 	Name = "RobloxLogo",
 	Parent = logoPhase,
-	Size = UDim2.new(0, 180, 0, 180),
+	Size = UDim2.new(0, 140, 0, 140),
 	Position = UDim2.new(0.5, 0, 0.5, 0),
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	BackgroundTransparency = 1,
@@ -309,7 +354,7 @@ create("UICorner", {Parent = robloxLogo, CornerRadius = UDim.new(1, 0)})
 local logoRing = create("Frame", {
 	Name = "LogoRing",
 	Parent = logoPhase,
-	Size = UDim2.new(0, 220, 0, 220),
+	Size = UDim2.new(0, 170, 0, 170),
 	Position = UDim2.new(0.5, 0, 0.5, 0),
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	BackgroundTransparency = 1,
@@ -327,7 +372,7 @@ local ringStroke = create("UIStroke", {
 local innerRing = create("Frame", {
 	Name = "InnerRing",
 	Parent = logoPhase,
-	Size = UDim2.new(0, 200, 0, 200),
+	Size = UDim2.new(0, 155, 0, 155),
 	Position = UDim2.new(0.5, 0, 0.5, 0),
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	BackgroundTransparency = 1,
@@ -343,13 +388,12 @@ local innerStroke = create("UIStroke", {
 })
 
 -- ============================================
--- A2 TEXT CONTAINER - LEBAR (SEPERTI GAMBAR 2)
+-- A2 TEXT CONTAINER (DI DALAM FRAME)
 -- ============================================
 local a2Container = create("Frame", {
 	Name = "A2Container",
-	Parent = background,
-	-- LEBAR: dari 500 jadi 700
-	Size = UDim2.new(0, 700, 0, 250),
+	Parent = introFrame,
+	Size = UDim2.new(0, 400, 0, 200),
 	Position = UDim2.new(0.5, 0, 0.5, 0),
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	BackgroundTransparency = 1,
@@ -357,11 +401,10 @@ local a2Container = create("Frame", {
 	Visible = false,
 })
 
--- Glow layers (disuaikan untuk lebar)
 local glowLayers = {
-	{ color = CONFIG.A2ShadowColor, offset = 14, transparency = 0.7, size = 145 },
-	{ color = CONFIG.A2GlowColor,   offset = 10, transparency = 0.5, size = 135 },
-	{ color = Color3.fromRGB(255, 255, 255), offset = 5, transparency = 0.3, size = 128 },
+	{ color = CONFIG.A2ShadowColor, offset = 10, transparency = 0.7, size = 110 },
+	{ color = CONFIG.A2GlowColor,   offset = 7,  transparency = 0.5, size = 105 },
+	{ color = Color3.fromRGB(255, 255, 255), offset = 3, transparency = 0.3, size = 102 },
 }
 for i, layer in ipairs(glowLayers) do
 	local glow = create("TextLabel", {
@@ -379,7 +422,6 @@ for i, layer in ipairs(glowLayers) do
 	})
 end
 
--- Main A2 text
 local a2Text = create("TextLabel", {
 	Parent = a2Container,
 	Name = "A2Text",
@@ -387,7 +429,7 @@ local a2Text = create("TextLabel", {
 	BackgroundTransparency = 1,
 	Text = CONFIG.Text,
 	Font = Enum.Font.Arcade,
-	TextSize = 120,
+	TextSize = 100,
 	TextColor3 = CONFIG.A2Color,
 	TextTransparency = 1,
 	ZIndex = 10,
@@ -396,49 +438,46 @@ local a2Text = create("TextLabel", {
 local a2Stroke = create("UIStroke", {
 	Parent = a2Text,
 	Color = Color3.fromRGB(255, 255, 255),
-	Thickness = 5,
+	Thickness = 4,
 	Transparency = 1,
 })
 
--- Outer glow (disuaikan untuk lebar)
 local a2GlowFrame = create("Frame", {
 	Parent = a2Container,
 	Name = "A2GlowFrame",
-	-- LEBAR: dari 80 jadi 120
-	Size = UDim2.new(1, 120, 1, 80),
-	Position = UDim2.new(0, -60, 0, -40),
+	Size = UDim2.new(1, 60, 1, 60),
+	Position = UDim2.new(0, -30, 0, -30),
 	BackgroundTransparency = 1,
 	ZIndex = 9,
 })
 local a2GlowStroke = create("UIStroke", {
 	Parent = a2GlowFrame,
 	Color = Color3.fromRGB(255, 255, 255),
-	Thickness = 25,
+	Thickness = 20,
 	Transparency = 1,
 })
 
--- Subtitle
 local subtitle = create("TextLabel", {
 	Parent = a2Container,
 	Name = "Subtitle",
-	Size = UDim2.new(1, 0, 0, 30),
-	Position = UDim2.new(0, 0, 1, 15),
+	Size = UDim2.new(1, 0, 0, 25),
+	Position = UDim2.new(0, 0, 1, 10),
 	BackgroundTransparency = 1,
 	Text = "",
 	Font = Enum.Font.Code,
-	TextSize = 14,
+	TextSize = 12,
 	TextColor3 = CONFIG.TealColor,
 	TextTransparency = 0,
 	ZIndex = 10,
 })
 
 -- ============================================
--- CORNER BRACKETS (cyberpunk)
+-- CORNER BRACKETS (di dalam frame kecil)
 -- ============================================
 local function createBracket(position, anchor)
 	local bracket = create("Frame", {
-		Parent = background,
-		Size = UDim2.new(0, 30, 0, 30),
+		Parent = introFrame,
+		Size = UDim2.new(0, 24, 0, 24),
 		Position = position,
 		AnchorPoint = anchor,
 		BackgroundTransparency = 1,
@@ -472,26 +511,26 @@ local function createBracket(position, anchor)
 	return bracket
 end
 
-createBracket(UDim2.new(0, 20, 0, 20), Vector2.new(0, 0))
-createBracket(UDim2.new(1, -20, 0, 20), Vector2.new(1, 0))
-createBracket(UDim2.new(0, 20, 1, -20), Vector2.new(0, 1))
-createBracket(UDim2.new(1, -20, 1, -20), Vector2.new(1, 1))
+createBracket(UDim2.new(0, 15, 0, 15), Vector2.new(0, 0))
+createBracket(UDim2.new(1, -15, 0, 15), Vector2.new(1, 0))
+createBracket(UDim2.new(0, 15, 1, -15), Vector2.new(0, 1))
+createBracket(UDim2.new(1, -15, 1, -15), Vector2.new(1, 1))
 
 -- ============================================
--- FLOATING BLOCKS
+-- FLOATING BLOCKS (di dalam frame)
 -- ============================================
 local blockColors = {CONFIG.RedColor, CONFIG.TealColor, CONFIG.BlueColor, CONFIG.OrangeColor}
 local blockPositions = {
-	UDim2.new(0.1, 0, 0.15, 0),
-	UDim2.new(0.88, 0, 0.7, 0),
-	UDim2.new(0.15, 0, 0.8, 0),
-	UDim2.new(0.82, 0, 0.25, 0),
+	UDim2.new(0.08, 0, 0.12, 0),
+	UDim2.new(0.9, 0, 0.75, 0),
+	UDim2.new(0.12, 0, 0.85, 0),
+	UDim2.new(0.88, 0, 0.2, 0),
 }
 for i = 1, 4 do
 	local block = create("Frame", {
-		Parent = background,
+		Parent = introFrame,
 		Name = "Block" .. i,
-		Size = UDim2.new(0, 20, 0, 20),
+		Size = UDim2.new(0, 16, 0, 16),
 		Position = blockPositions[i],
 		BackgroundColor3 = blockColors[i],
 		BorderSizePixel = 0,
@@ -500,7 +539,7 @@ for i = 1, 4 do
 	create("UICorner", {Parent = block, CornerRadius = UDim.new(0, 3)})
 	task.spawn(function()
 		while block.Parent do
-			tween(block, {Position = UDim2.new(blockPositions[i].X.Scale, blockPositions[i].X.Offset, blockPositions[i].Y.Scale, blockPositions[i].Y.Offset - 15)}, 1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+			tween(block, {Position = UDim2.new(blockPositions[i].X.Scale, blockPositions[i].X.Offset, blockPositions[i].Y.Scale, blockPositions[i].Y.Offset - 12)}, 1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 			task.wait(1.5)
 			if not block.Parent then break end
 			tween(block, {Position = blockPositions[i]}, 1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
@@ -510,16 +549,16 @@ for i = 1, 4 do
 end
 
 -- ============================================
--- PARTICLE SYSTEM
+-- PARTICLE SYSTEM (di dalam frame)
 -- ============================================
 local particleColors = {Color3.fromRGB(255,255,255), CONFIG.A2GlowColor, CONFIG.TealColor, CONFIG.OrangeColor, CONFIG.BlueColor}
 local function spawnParticle()
 	local color = particleColors[math.random(1, #particleColors)]
-	local size = randomRange(4, 10)
+	local size = randomRange(3, 8)
 	local startX = randomRange(0, 1)
-	local duration = randomRange(3, 8)
+	local duration = randomRange(2.5, 5)
 	local particle = create("Frame", {
-		Parent = background,
+		Parent = introFrame,
 		Name = "Particle",
 		Size = UDim2.new(0, size, 0, size),
 		Position = UDim2.new(startX, 0, 1, 0),
@@ -538,18 +577,18 @@ local function spawnParticle()
 end
 
 task.spawn(function()
-	while background.Parent do
+	while introFrame.Parent do
 		spawnParticle()
 		task.wait(randomRange(0.1, 0.4))
 	end
 end)
 
 -- ============================================
--- GLITCH EFFECT
+-- GLITCH EFFECT (di dalam frame)
 -- ============================================
 local glitchFrame = create("Frame", {
 	Name = "GlitchOverlay",
-	Parent = background,
+	Parent = introFrame,
 	Size = UDim2.new(1, 0, 1, 0),
 	BackgroundTransparency = 1,
 	ZIndex = 20,
@@ -577,26 +616,26 @@ task.spawn(function()
 end)
 
 -- ============================================
--- REPLAY BUTTON
+-- REPLAY BUTTON (di dalam frame)
 -- ============================================
 local replayBtn = create("TextButton", {
-	Parent = background,
+	Parent = introFrame,
 	Name = "ReplayButton",
-	Size = UDim2.new(0, 120, 0, 36),
-	Position = UDim2.new(0.5, 0, 1, -50),
+	Size = UDim2.new(0, 100, 0, 30),
+	Position = UDim2.new(0.5, 0, 1, -40),
 	AnchorPoint = Vector2.new(0.5, 1),
 	BackgroundColor3 = CONFIG.BackgroundColor,
 	BackgroundTransparency = 0,
 	Text = "▶ REPLAY",
 	Font = Enum.Font.Code,
-	TextSize = 12,
+	TextSize = 10,
 	TextColor3 = Color3.fromRGB(255, 255, 255),
 	ZIndex = 30,
 	Visible = false,
 	AutoButtonColor = true,
 })
 create("UIStroke", {Parent = replayBtn, Color = CONFIG.NeonCyan, Thickness = 2})
-create("UICorner", {Parent = replayBtn, CornerRadius = UDim.new(0, 8)})
+create("UICorner", {Parent = replayBtn, CornerRadius = UDim.new(0, 6)})
 
 replayBtn.MouseEnter:Connect(function()
 	tween(replayBtn, {BackgroundColor3 = CONFIG.NeonCyan}, 0.3)
@@ -611,10 +650,12 @@ end)
 -- AUTO CLOSE FUNCTION
 -- ============================================
 local function closeIntro()
-	tween(background, {BackgroundTransparency = 1}, CONFIG.CloseFadeDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	-- Fade out frame + overlay
+	tween(introFrame, {BackgroundTransparency = 1}, CONFIG.CloseFadeDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	tween(darkOverlay, {BackgroundTransparency = 1}, CONFIG.CloseFadeDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 
-	for _, child in ipairs(background:GetDescendants()) do
-		if child:IsA("Frame") and child ~= background then
+	for _, child in ipairs(introFrame:GetDescendants()) do
+		if child:IsA("Frame") and child ~= introFrame then
 			tween(child, {BackgroundTransparency = 1}, CONFIG.CloseFadeDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 		elseif child:IsA("TextLabel") or child:IsA("TextButton") then
 			tween(child, {TextTransparency = 1}, CONFIG.CloseFadeDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -624,6 +665,8 @@ local function closeIntro()
 			tween(child, {Transparency = 1}, CONFIG.CloseFadeDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 		end
 	end
+
+	tween(frameBorder, {Transparency = 1}, CONFIG.CloseFadeDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 
 	task.delay(CONFIG.CloseFadeDuration + 0.2, function()
 		if screenGui.Parent then
@@ -639,13 +682,13 @@ end
 local function playIntro()
 	-- RESET
 	robloxLogo.ImageTransparency = 1
-	robloxLogo.Size = UDim2.new(0, 150, 0, 150)
+	robloxLogo.Size = UDim2.new(0, 120, 0, 120)
 	robloxLogo.Rotation = 0
 
-	logoRing.Size = UDim2.new(0, 190, 0, 190)
+	logoRing.Size = UDim2.new(0, 150, 0, 150)
 	ringStroke.Transparency = 1
 
-	innerRing.Size = UDim2.new(0, 170, 0, 170)
+	innerRing.Size = UDim2.new(0, 135, 0, 135)
 	innerStroke.Transparency = 1
 
 	logoPhase.Visible = true
@@ -665,39 +708,37 @@ local function playIntro()
 	-- ========== PHASE 1: ROBLOX LOGO BULET ==========
 	tween(robloxLogo, {ImageTransparency = 0}, 0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
-	tween(logoRing, {Size = UDim2.new(0, 280, 0, 280)}, 1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.2)
+	tween(logoRing, {Size = UDim2.new(0, 220, 0, 220)}, 1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.2)
 	tween(ringStroke, {Transparency = 0.6}, 1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.3)
 
-	tween(innerRing, {Size = UDim2.new(0, 240, 0, 240)}, 1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.3)
+	tween(innerRing, {Size = UDim2.new(0, 190, 0, 190)}, 1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.3)
 	tween(innerStroke, {Transparency = 0.5}, 0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.4)
 
-	tween(robloxLogo, {Size = UDim2.new(0, 210, 0, 210)}, 1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 0.5)
+	tween(robloxLogo, {Size = UDim2.new(0, 160, 0, 160)}, 1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 0.5)
 	task.wait(1.2)
 	if not robloxLogo.Parent then return end
-	tween(robloxLogo, {Size = UDim2.new(0, 190, 0, 190)}, 1.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+	tween(robloxLogo, {Size = UDim2.new(0, 145, 0, 145)}, 1.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 
 	task.wait(CONFIG.LogoDuration - 1.2)
 	if not robloxLogo.Parent then return end
 
-	tween(robloxLogo, {ImageTransparency = 1, Size = UDim2.new(0, 320, 0, 320), Rotation = 20}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-	tween(logoRing, {Size = UDim2.new(0, 450, 0, 450)}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	tween(robloxLogo, {ImageTransparency = 1, Size = UDim2.new(0, 260, 0, 260), Rotation = 20}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	tween(logoRing, {Size = UDim2.new(0, 350, 0, 350)}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 	tween(ringStroke, {Transparency = 1}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-	tween(innerRing, {Size = UDim2.new(0, 380, 0, 380)}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+	tween(innerRing, {Size = UDim2.new(0, 300, 0, 300)}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 	tween(innerStroke, {Transparency = 1}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 
 	task.wait(CONFIG.LogoFadeOut + 0.2)
 	logoPhase.Visible = false
 
-	-- ========== PHASE 2: A2 GLOW PUTIH (LEBAR!) ==========
+	-- ========== PHASE 2: A2 GLOW PUTIH ==========
 	a2Container.Visible = true
-	-- Start lebih lebar juga
-	a2Container.Size = UDim2.new(0, 420, 0, 150)
-	a2Container.Position = UDim2.new(0.5, 0, 0.5, 40)
+	a2Container.Size = UDim2.new(0, 250, 0, 120)
+	a2Container.Position = UDim2.new(0.5, 0, 0.5, 30)
 
-	-- Entry bounce (LEBAR)
 	tween(a2Container, {
-		Size = UDim2.new(0, 740, 0, 260),
-		Position = UDim2.new(0.5, 0, 0.5, -10)
+		Size = UDim2.new(0, 440, 0, 210),
+		Position = UDim2.new(0.5, 0, 0.5, -8)
 	}, 0.7, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
 	for i, child in ipairs(a2Container:GetChildren()) do
@@ -711,9 +752,8 @@ local function playIntro()
 	tween(a2Stroke, {Transparency = 0.05}, 0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.4)
 	tween(a2GlowStroke, {Transparency = 0.55}, 1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.5)
 
-	-- Bounce back (LEBAR)
 	tween(a2Container, {
-		Size = UDim2.new(0, 700, 0, 250),
+		Size = UDim2.new(0, 400, 0, 200),
 		Position = UDim2.new(0.5, 0, 0.5, 0)
 	}, 0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.7)
 
@@ -763,4 +803,4 @@ replayBtn.MouseButton1Click:Connect(function()
 	playIntro()
 end)
 
-print("[A2 Intro v5] Teks LEBAR Loaded! Durasi sama. Logo bulet → A2 Wide → Auto Close")
+print("[A2 Intro v6] Frame Kecil Loaded! Seukuran gambar 2. Durasi sama.")
