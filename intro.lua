@@ -1,5 +1,5 @@
 -- ============================================
--- A2 ROBLOX INTRO UI LIBRARY v3
+-- A2 ROBLOX INTRO UI LIBRARY v4 - CYBERPUNK BG
 -- by Kimi Chat | StarterGui > ScreenGui > LocalScript
 -- Sequence: Roblox Logo (bulet) → A2 Glow White → Auto Close
 -- ============================================
@@ -13,7 +13,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 -- CONFIGURATION
 -- ============================================
 local CONFIG = {
-	BackgroundColor = Color3.fromRGB(13, 13, 13),
+	BackgroundColor = Color3.fromRGB(5, 5, 15),    -- lebih gelap cyberpunk
 	Text = "A2",
 	Subtitle = "Loading Experience...",
 
@@ -28,10 +28,13 @@ local CONFIG = {
 	A2ShadowColor = Color3.fromRGB(100, 150, 255),
 
 	-- Auto close
-	AutoCloseDelay = 5.5,    -- detik setelah A2 muncul, intro auto hilang
-	CloseFadeDuration = 1.0, -- durasi fade out intro
+	AutoCloseDelay = 5.5,
+	CloseFadeDuration = 1.0,
 
-	-- Colors
+	-- Cyberpunk Colors
+	NeonCyan = Color3.fromRGB(0, 255, 255),
+	NeonMagenta = Color3.fromRGB(255, 0, 255),
+	NeonPurple = Color3.fromRGB(150, 0, 255),
 	TealColor = Color3.fromRGB(0, 212, 170),
 	OrangeColor = Color3.fromRGB(255, 107, 0),
 	RedColor = Color3.fromRGB(230, 57, 70),
@@ -83,44 +86,185 @@ local background = create("Frame", {
 	ZIndex = 1,
 })
 
--- Grid pattern
-local gridPattern = create("Frame", {
-	Name = "GridPattern",
+-- ============================================
+-- CYBERPUNK BACKGROUND - NO GRID/BOLA
+-- ============================================
+
+-- 1. Diagonal neon lines (moving)
+local diagLines = create("Frame", {
+	Name = "DiagLines",
 	Parent = background,
 	Size = UDim2.new(1, 0, 1, 0),
 	BackgroundTransparency = 1,
 	ZIndex = 2,
 })
-for i = 0, 20 do
-	create("Frame", {
-		Parent = gridPattern,
-		Size = UDim2.new(1, 0, 0, 1),
-		Position = UDim2.new(0, 0, i / 20, 0),
-		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-		BackgroundTransparency = 0.97,
+
+for i = 1, 12 do
+	local line = create("Frame", {
+		Parent = diagLines,
+		Name = "Diag" .. i,
+		Size = UDim2.new(0, 2, 1.5, 0),
+		Position = UDim2.new(randomRange(-0.2, 1.2), 0, -0.25, 0),
+		BackgroundColor3 = i % 2 == 0 and CONFIG.NeonCyan or CONFIG.NeonMagenta,
+		BackgroundTransparency = 0.92,
 		BorderSizePixel = 0,
+		Rotation = 35,
+		ZIndex = 2,
 	})
-	create("Frame", {
-		Parent = gridPattern,
-		Size = UDim2.new(0, 1, 1, 0),
-		Position = UDim2.new(i / 20, 0, 0, 0),
-		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-		BackgroundTransparency = 0.97,
-		BorderSizePixel = 0,
-	})
+
+	-- Animate diagonal lines moving
+	task.spawn(function()
+		while line.Parent do
+			local targetX = randomRange(-0.3, 1.3)
+			tween(line, {Position = UDim2.new(targetX, 0, -0.25, 0)}, randomRange(6, 12), Enum.EasingStyle.Linear, Enum.EasingDirection.InOut)
+			task.wait(randomRange(6, 12))
+		end
+	end)
 end
 
--- Animate grid
-local gridOffset = 0
+-- 2. Horizontal neon scan bars (pulse)
+local scanBars = create("Frame", {
+	Name = "ScanBars",
+	Parent = background,
+	Size = UDim2.new(1, 0, 1, 0),
+	BackgroundTransparency = 1,
+	ZIndex = 2,
+})
+
+for i = 1, 8 do
+	local bar = create("Frame", {
+		Parent = scanBars,
+		Name = "Bar" .. i,
+		Size = UDim2.new(1, 0, 0, randomRange(1, 3)),
+		Position = UDim2.new(0, 0, randomRange(0, 1), 0),
+		BackgroundColor3 = i % 3 == 0 and CONFIG.NeonPurple or (i % 2 == 0 and CONFIG.NeonCyan or CONFIG.NeonMagenta),
+		BackgroundTransparency = 0.95,
+		BorderSizePixel = 0,
+		ZIndex = 2,
+	})
+
+	task.spawn(function()
+		while bar.Parent do
+			tween(bar, {BackgroundTransparency = 0.85}, randomRange(1, 2), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+			task.wait(randomRange(1, 2))
+			if not bar.Parent then break end
+			tween(bar, {BackgroundTransparency = 0.96}, randomRange(1, 2), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+			task.wait(randomRange(1, 2))
+		end
+	end)
+end
+
+-- 3. Vertical neon pillars (glow up and down)
+local pillars = create("Frame", {
+	Name = "Pillars",
+	Parent = background,
+	Size = UDim2.new(1, 0, 1, 0),
+	BackgroundTransparency = 1,
+	ZIndex = 2,
+})
+
+for i = 1, 6 do
+	local pillar = create("Frame", {
+		Parent = pillars,
+		Name = "Pillar" .. i,
+		Size = UDim2.new(0, randomRange(2, 4), randomRange(0.3, 0.7), 0),
+		Position = UDim2.new(randomRange(0.1, 0.9), 0, randomRange(0, 0.5), 0),
+		BackgroundColor3 = i % 2 == 0 and CONFIG.NeonCyan or CONFIG.NeonMagenta,
+		BackgroundTransparency = 0.94,
+		BorderSizePixel = 0,
+		ZIndex = 2,
+	})
+
+	task.spawn(function()
+		while pillar.Parent do
+			tween(pillar, {BackgroundTransparency = 0.82, Size = UDim2.new(pillar.Size.X.Scale, pillar.Size.X.Offset, pillar.Size.Y.Scale + 0.1, 0)}, randomRange(2, 4), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+			task.wait(randomRange(2, 4))
+			if not pillar.Parent then break end
+			tween(pillar, {BackgroundTransparency = 0.95, Size = UDim2.new(pillar.Size.X.Scale, pillar.Size.X.Offset, pillar.Size.Y.Scale - 0.1, 0)}, randomRange(2, 4), Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+			task.wait(randomRange(2, 4))
+		end
+	end)
+end
+
+-- 4. Digital rain effect (thin falling lines)
+local digitalRain = create("Frame", {
+	Name = "DigitalRain",
+	Parent = background,
+	Size = UDim2.new(1, 0, 1, 0),
+	BackgroundTransparency = 1,
+	ZIndex = 3,
+})
+
+local function spawnRainDrop()
+	local drop = create("Frame", {
+		Parent = digitalRain,
+		Name = "RainDrop",
+		Size = UDim2.new(0, 1, 0, randomRange(20, 80)),
+		Position = UDim2.new(randomRange(0, 1), 0, -0.1, 0),
+		BackgroundColor3 = math.random() > 0.5 and CONFIG.NeonCyan or CONFIG.NeonMagenta,
+		BackgroundTransparency = 0.7,
+		BorderSizePixel = 0,
+		ZIndex = 3,
+	})
+
+	local duration = randomRange(1.5, 3.5)
+	tween(drop, {
+		Position = UDim2.new(drop.Position.X.Scale, 0, 1.1, 0),
+		BackgroundTransparency = 1,
+	}, duration, Enum.EasingStyle.Linear, Enum.EasingDirection.In)
+
+	game:GetService("Debris"):AddItem(drop, duration)
+end
+
 task.spawn(function()
 	while background.Parent do
-		gridOffset = (gridOffset + 1) % 40
-		gridPattern.Position = UDim2.new(0, -gridOffset, 0, -gridOffset)
-		task.wait(0.05)
+		spawnRainDrop()
+		task.wait(randomRange(0.05, 0.2))
 	end
 end)
 
--- Scanlines
+-- 5. Corner neon glow (cyberpunk frame)
+local cornerGlows = {}
+local cornerPositions = {
+	{UDim2.new(0, 0, 0, 0), UDim2.new(0, 150, 0, 2)},
+	{UDim2.new(1, -150, 0, 0), UDim2.new(0, 150, 0, 2)},
+	{UDim2.new(0, 0, 1, -2), UDim2.new(0, 150, 0, 2)},
+	{UDim2.new(1, -150, 1, -2), UDim2.new(0, 150, 0, 2)},
+	{UDim2.new(0, 0, 0, 0), UDim2.new(0, 2, 0, 100)},
+	{UDim2.new(1, -2, 0, 0), UDim2.new(0, 2, 0, 100)},
+	{UDim2.new(0, 0, 1, -100), UDim2.new(0, 2, 0, 100)},
+	{UDim2.new(1, -2, 1, -100), UDim2.new(0, 2, 0, 100)},
+}
+
+for i, pos in ipairs(cornerPositions) do
+	local glow = create("Frame", {
+		Parent = background,
+		Name = "CornerGlow" .. i,
+		Position = pos[1],
+		Size = pos[2],
+		BackgroundColor3 = i % 2 == 0 and CONFIG.NeonCyan or CONFIG.NeonMagenta,
+		BackgroundTransparency = 0.85,
+		BorderSizePixel = 0,
+		ZIndex = 4,
+	})
+	table.insert(cornerGlows, glow)
+end
+
+-- Pulse corner glows
+task.spawn(function()
+	while background.Parent do
+		for _, glow in ipairs(cornerGlows) do
+			tween(glow, {BackgroundTransparency = 0.7}, 1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+		end
+		task.wait(1.5)
+		for _, glow in ipairs(cornerGlows) do
+			tween(glow, {BackgroundTransparency = 0.9}, 1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+		end
+		task.wait(1.5)
+	end
+end)
+
+-- Scanlines (retro cyberpunk)
 local scanlines = create("Frame", {
 	Name = "Scanlines",
 	Parent = background,
@@ -162,13 +306,8 @@ local robloxLogo = create("ImageLabel", {
 	ZIndex = 100,
 })
 
--- BUAT LOGO JADI BULET
-local logoCorner = create("UICorner", {
-	Parent = robloxLogo,
-	CornerRadius = UDim.new(1, 0),  -- 1,0 = perfect circle
-})
+create("UICorner", {Parent = robloxLogo, CornerRadius = UDim.new(1, 0)})
 
--- Ring glow di luar logo (juga bulet)
 local logoRing = create("Frame", {
 	Name = "LogoRing",
 	Parent = logoPhase,
@@ -187,7 +326,6 @@ local ringStroke = create("UIStroke", {
 	Transparency = 1,
 })
 
--- Inner ring (bulet juga)
 local innerRing = create("Frame", {
 	Name = "InnerRing",
 	Parent = logoPhase,
@@ -201,7 +339,7 @@ local innerRing = create("Frame", {
 create("UICorner", {Parent = innerRing, CornerRadius = UDim.new(1, 0)})
 local innerStroke = create("UIStroke", {
 	Parent = innerRing,
-	Color = Color3.fromRGB(255, 215, 0),
+	Color = CONFIG.NeonCyan,
 	Thickness = 2,
 	Transparency = 1,
 })
@@ -220,7 +358,6 @@ local a2Container = create("Frame", {
 	Visible = false,
 })
 
--- Glow layers
 local glowLayers = {
 	{ color = CONFIG.A2ShadowColor, offset = 14, transparency = 0.7, size = 145 },
 	{ color = CONFIG.A2GlowColor,   offset = 10, transparency = 0.5, size = 135 },
@@ -242,7 +379,6 @@ for i, layer in ipairs(glowLayers) do
 	})
 end
 
--- Main A2 text
 local a2Text = create("TextLabel", {
 	Parent = a2Container,
 	Name = "A2Text",
@@ -256,7 +392,6 @@ local a2Text = create("TextLabel", {
 	ZIndex = 10,
 })
 
--- White glow stroke
 local a2Stroke = create("UIStroke", {
 	Parent = a2Text,
 	Color = Color3.fromRGB(255, 255, 255),
@@ -264,7 +399,6 @@ local a2Stroke = create("UIStroke", {
 	Transparency = 1,
 })
 
--- Outer glow
 local a2GlowFrame = create("Frame", {
 	Parent = a2Container,
 	Name = "A2GlowFrame",
@@ -280,7 +414,6 @@ local a2GlowStroke = create("UIStroke", {
 	Transparency = 1,
 })
 
--- Subtitle
 local subtitle = create("TextLabel", {
 	Parent = a2Container,
 	Name = "Subtitle",
@@ -296,7 +429,7 @@ local subtitle = create("TextLabel", {
 })
 
 -- ============================================
--- CORNER BRACKETS
+-- CORNER BRACKETS (cyberpunk style)
 -- ============================================
 local function createBracket(position, anchor)
 	local bracket = create("Frame", {
@@ -311,13 +444,13 @@ local function createBracket(position, anchor)
 	local h = create("Frame", {
 		Parent = bracket,
 		Size = UDim2.new(1, 0, 0, 3),
-		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		BackgroundColor3 = CONFIG.NeonCyan,
 		BorderSizePixel = 0,
 	})
 	local v = create("Frame", {
 		Parent = bracket,
 		Size = UDim2.new(0, 3, 1, 0),
-		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		BackgroundColor3 = CONFIG.NeonCyan,
 		BorderSizePixel = 0,
 	})
 	if position.X.Scale > 0.5 then
@@ -458,11 +591,11 @@ local replayBtn = create("TextButton", {
 	Visible = false,
 	AutoButtonColor = true,
 })
-create("UIStroke", {Parent = replayBtn, Color = Color3.fromRGB(255, 255, 255), Thickness = 2})
+create("UIStroke", {Parent = replayBtn, Color = CONFIG.NeonCyan, Thickness = 2})
 create("UICorner", {Parent = replayBtn, CornerRadius = UDim.new(0, 8)})
 
 replayBtn.MouseEnter:Connect(function()
-	tween(replayBtn, {BackgroundColor3 = Color3.fromRGB(255, 255, 255)}, 0.3)
+	tween(replayBtn, {BackgroundColor3 = CONFIG.NeonCyan}, 0.3)
 	tween(replayBtn, {TextColor3 = CONFIG.BackgroundColor}, 0.3)
 end)
 replayBtn.MouseLeave:Connect(function()
@@ -474,10 +607,8 @@ end)
 -- AUTO CLOSE FUNCTION
 -- ============================================
 local function closeIntro()
-	-- Fade out everything
 	tween(background, {BackgroundTransparency = 1}, CONFIG.CloseFadeDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 
-	-- Fade out all children
 	for _, child in ipairs(background:GetDescendants()) do
 		if child:IsA("Frame") and child ~= background then
 			tween(child, {BackgroundTransparency = 1}, CONFIG.CloseFadeDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -490,7 +621,6 @@ local function closeIntro()
 		end
 	end
 
-	-- Destroy after fade
 	task.delay(CONFIG.CloseFadeDuration + 0.2, function()
 		if screenGui.Parent then
 			screenGui:Destroy()
@@ -500,7 +630,7 @@ local function closeIntro()
 end
 
 -- ============================================
--- ANIMATION SEQUENCE
+-- ANIMATION SEQUENCE (DURASI SAMA!)
 -- ============================================
 local function playIntro()
 	-- RESET
@@ -529,27 +659,22 @@ local function playIntro()
 	replayBtn.Visible = false
 
 	-- ========== PHASE 1: ROBLOX LOGO BULET ==========
-	-- Fade in
 	tween(robloxLogo, {ImageTransparency = 0}, 0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
-	-- Rings expand
 	tween(logoRing, {Size = UDim2.new(0, 280, 0, 280)}, 1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.2)
 	tween(ringStroke, {Transparency = 0.6}, 1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.3)
 
 	tween(innerRing, {Size = UDim2.new(0, 240, 0, 240)}, 1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.3)
 	tween(innerStroke, {Transparency = 0.5}, 0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.4)
 
-	-- Pulse logo
 	tween(robloxLogo, {Size = UDim2.new(0, 210, 0, 210)}, 1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 0.5)
 	task.wait(1.2)
 	if not robloxLogo.Parent then return end
 	tween(robloxLogo, {Size = UDim2.new(0, 190, 0, 190)}, 1.0, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 
-	-- Wait
 	task.wait(CONFIG.LogoDuration - 1.2)
 	if not robloxLogo.Parent then return end
 
-	-- Fade out logo
 	tween(robloxLogo, {ImageTransparency = 1, Size = UDim2.new(0, 320, 0, 320), Rotation = 20}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 	tween(logoRing, {Size = UDim2.new(0, 450, 0, 450)}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 	tween(ringStroke, {Transparency = 1}, CONFIG.LogoFadeOut, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -564,33 +689,27 @@ local function playIntro()
 	a2Container.Size = UDim2.new(0, 300, 0, 150)
 	a2Container.Position = UDim2.new(0.5, 0, 0.5, 40)
 
-	-- Entry bounce
 	tween(a2Container, {
 		Size = UDim2.new(0, 520, 0, 260),
 		Position = UDim2.new(0.5, 0, 0.5, -10)
 	}, 0.7, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
-	-- Reveal glow layers
 	for i, child in ipairs(a2Container:GetChildren()) do
 		if child:IsA("TextLabel") and child.Name:find("Glow") then
 			tween(child, {TextTransparency = 0.35}, 0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.2 + (i * 0.08))
 		end
 	end
 
-	-- Reveal main text
 	tween(a2Text, {TextTransparency = 0}, 0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.3)
 
-	-- Reveal strokes
 	tween(a2Stroke, {Transparency = 0.05}, 0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.4)
 	tween(a2GlowStroke, {Transparency = 0.55}, 1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.5)
 
-	-- Bounce back
 	tween(a2Container, {
 		Size = UDim2.new(0, 500, 0, 250),
 		Position = UDim2.new(0.5, 0, 0.5, 0)
 	}, 0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.7)
 
-	-- Typewriter subtitle
 	task.delay(1.5, function()
 		local text = CONFIG.Subtitle
 		for i = 1, #text do
@@ -600,7 +719,6 @@ local function playIntro()
 		end
 	end)
 
-	-- Pulse glow
 	task.delay(2, function()
 		while a2Text.Parent and a2Text.TextTransparency < 0.5 do
 			tween(a2GlowStroke, {Transparency = 0.25}, 1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
@@ -613,7 +731,6 @@ local function playIntro()
 		end
 	end)
 
-	-- Show replay button
 	task.delay(3.5, function()
 		if replayBtn.Parent then
 			replayBtn.Visible = true
@@ -621,7 +738,7 @@ local function playIntro()
 		end
 	end)
 
-	-- ========== AUTO CLOSE ==========
+	-- ========== AUTO CLOSE (DURASI SAMA) ==========
 	task.delay(CONFIG.AutoCloseDelay, function()
 		if screenGui.Parent then
 			closeIntro()
@@ -635,9 +752,8 @@ end
 playIntro()
 
 replayBtn.MouseButton1Click:Connect(function()
-	-- Cancel auto close if replay clicked
 	replayBtn.Visible = false
 	playIntro()
 end)
 
-print("[A2 Intro v3] Loaded! Logo bulet → A2 Glow → Auto Close")
+print("[A2 Intro v4] Cyberpunk BG Loaded! Durasi sama. Logo bulet → A2 Glow → Auto Close")
