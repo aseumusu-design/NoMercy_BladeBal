@@ -1,7 +1,7 @@
 -- ============================================
--- A2 ROBLOX INTRO UI LIBRARY v4 - CYBERPUNK BG
+-- A2 ROBLOX INTRO UI LIBRARY v5 - WIDE TEXT
 -- by Kimi Chat | StarterGui > ScreenGui > LocalScript
--- Sequence: Roblox Logo (bulet) → A2 Glow White → Auto Close
+-- Teks A2 LEBAR seperti gambar 2
 -- ============================================
 
 local TweenService = game:GetService("TweenService")
@@ -13,7 +13,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 -- CONFIGURATION
 -- ============================================
 local CONFIG = {
-	BackgroundColor = Color3.fromRGB(5, 5, 15),    -- lebih gelap cyberpunk
+	BackgroundColor = Color3.fromRGB(5, 5, 15),
 	Text = "A2",
 	Subtitle = "Loading Experience...",
 
@@ -87,10 +87,10 @@ local background = create("Frame", {
 })
 
 -- ============================================
--- CYBERPUNK BACKGROUND - NO GRID/BOLA
+-- CYBERPUNK BACKGROUND
 -- ============================================
 
--- 1. Diagonal neon lines (moving)
+-- Diagonal neon lines
 local diagLines = create("Frame", {
 	Name = "DiagLines",
 	Parent = background,
@@ -112,7 +112,6 @@ for i = 1, 12 do
 		ZIndex = 2,
 	})
 
-	-- Animate diagonal lines moving
 	task.spawn(function()
 		while line.Parent do
 			local targetX = randomRange(-0.3, 1.3)
@@ -122,7 +121,7 @@ for i = 1, 12 do
 	end)
 end
 
--- 2. Horizontal neon scan bars (pulse)
+-- Horizontal scan bars
 local scanBars = create("Frame", {
 	Name = "ScanBars",
 	Parent = background,
@@ -154,7 +153,7 @@ for i = 1, 8 do
 	end)
 end
 
--- 3. Vertical neon pillars (glow up and down)
+-- Vertical neon pillars
 local pillars = create("Frame", {
 	Name = "Pillars",
 	Parent = background,
@@ -186,7 +185,7 @@ for i = 1, 6 do
 	end)
 end
 
--- 4. Digital rain effect (thin falling lines)
+-- Digital rain
 local digitalRain = create("Frame", {
 	Name = "DigitalRain",
 	Parent = background,
@@ -223,7 +222,7 @@ task.spawn(function()
 	end
 end)
 
--- 5. Corner neon glow (cyberpunk frame)
+-- Corner neon glows
 local cornerGlows = {}
 local cornerPositions = {
 	{UDim2.new(0, 0, 0, 0), UDim2.new(0, 150, 0, 2)},
@@ -250,7 +249,6 @@ for i, pos in ipairs(cornerPositions) do
 	table.insert(cornerGlows, glow)
 end
 
--- Pulse corner glows
 task.spawn(function()
 	while background.Parent do
 		for _, glow in ipairs(cornerGlows) do
@@ -264,7 +262,7 @@ task.spawn(function()
 	end
 end)
 
--- Scanlines (retro cyberpunk)
+-- Scanlines
 local scanlines = create("Frame", {
 	Name = "Scanlines",
 	Parent = background,
@@ -284,7 +282,7 @@ for i = 0, 100 do
 end
 
 -- ============================================
--- ROBLOX LOGO PHASE (BULET!)
+-- ROBLOX LOGO PHASE (BULET)
 -- ============================================
 local logoPhase = create("Frame", {
 	Name = "LogoPhase",
@@ -345,12 +343,13 @@ local innerStroke = create("UIStroke", {
 })
 
 -- ============================================
--- A2 TEXT CONTAINER (PHASE 2)
+-- A2 TEXT CONTAINER - LEBAR (SEPERTI GAMBAR 2)
 -- ============================================
 local a2Container = create("Frame", {
 	Name = "A2Container",
 	Parent = background,
-	Size = UDim2.new(0, 500, 0, 250),
+	-- LEBAR: dari 500 jadi 700
+	Size = UDim2.new(0, 700, 0, 250),
 	Position = UDim2.new(0.5, 0, 0.5, 0),
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	BackgroundTransparency = 1,
@@ -358,6 +357,7 @@ local a2Container = create("Frame", {
 	Visible = false,
 })
 
+-- Glow layers (disuaikan untuk lebar)
 local glowLayers = {
 	{ color = CONFIG.A2ShadowColor, offset = 14, transparency = 0.7, size = 145 },
 	{ color = CONFIG.A2GlowColor,   offset = 10, transparency = 0.5, size = 135 },
@@ -379,6 +379,7 @@ for i, layer in ipairs(glowLayers) do
 	})
 end
 
+-- Main A2 text
 local a2Text = create("TextLabel", {
 	Parent = a2Container,
 	Name = "A2Text",
@@ -399,11 +400,13 @@ local a2Stroke = create("UIStroke", {
 	Transparency = 1,
 })
 
+-- Outer glow (disuaikan untuk lebar)
 local a2GlowFrame = create("Frame", {
 	Parent = a2Container,
 	Name = "A2GlowFrame",
-	Size = UDim2.new(1, 80, 1, 80),
-	Position = UDim2.new(0, -40, 0, -40),
+	-- LEBAR: dari 80 jadi 120
+	Size = UDim2.new(1, 120, 1, 80),
+	Position = UDim2.new(0, -60, 0, -40),
 	BackgroundTransparency = 1,
 	ZIndex = 9,
 })
@@ -414,6 +417,7 @@ local a2GlowStroke = create("UIStroke", {
 	Transparency = 1,
 })
 
+-- Subtitle
 local subtitle = create("TextLabel", {
 	Parent = a2Container,
 	Name = "Subtitle",
@@ -429,7 +433,7 @@ local subtitle = create("TextLabel", {
 })
 
 -- ============================================
--- CORNER BRACKETS (cyberpunk style)
+-- CORNER BRACKETS (cyberpunk)
 -- ============================================
 local function createBracket(position, anchor)
 	local bracket = create("Frame", {
@@ -684,13 +688,15 @@ local function playIntro()
 	task.wait(CONFIG.LogoFadeOut + 0.2)
 	logoPhase.Visible = false
 
-	-- ========== PHASE 2: A2 GLOW PUTIH ==========
+	-- ========== PHASE 2: A2 GLOW PUTIH (LEBAR!) ==========
 	a2Container.Visible = true
-	a2Container.Size = UDim2.new(0, 300, 0, 150)
+	-- Start lebih lebar juga
+	a2Container.Size = UDim2.new(0, 420, 0, 150)
 	a2Container.Position = UDim2.new(0.5, 0, 0.5, 40)
 
+	-- Entry bounce (LEBAR)
 	tween(a2Container, {
-		Size = UDim2.new(0, 520, 0, 260),
+		Size = UDim2.new(0, 740, 0, 260),
 		Position = UDim2.new(0.5, 0, 0.5, -10)
 	}, 0.7, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
@@ -705,8 +711,9 @@ local function playIntro()
 	tween(a2Stroke, {Transparency = 0.05}, 0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.4)
 	tween(a2GlowStroke, {Transparency = 0.55}, 1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.5)
 
+	-- Bounce back (LEBAR)
 	tween(a2Container, {
-		Size = UDim2.new(0, 500, 0, 250),
+		Size = UDim2.new(0, 700, 0, 250),
 		Position = UDim2.new(0.5, 0, 0.5, 0)
 	}, 0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0.7)
 
@@ -756,4 +763,4 @@ replayBtn.MouseButton1Click:Connect(function()
 	playIntro()
 end)
 
-print("[A2 Intro v4] Cyberpunk BG Loaded! Durasi sama. Logo bulet → A2 Glow → Auto Close")
+print("[A2 Intro v5] Teks LEBAR Loaded! Durasi sama. Logo bulet → A2 Wide → Auto Close")
