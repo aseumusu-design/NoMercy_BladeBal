@@ -1,36 +1,40 @@
--- [[ DETEKTOR REMOTE SKILL SEJATI ]]
--- Menangkap SEMUA FireServer dari manapun, print path + argumen.
+-- [[ DETEKTOR REMOTE SKILL SEJATI (FIXED) ]]
+-- Tanpa error, menggunakan tabel untuk tracking.
 
-local function hookAllRemoteEvents(parent)
-    for _, obj in ipairs(parent:GetDescendants()) do
-        if obj:IsA("RemoteEvent") then
-            if not obj._hooked then
-                obj._hooked = true
-                local old = obj.FireServer
-                obj.FireServer = function(self, ...)
-                    local path = self:GetFullName()
-                    print("🔥 REMOTE TERPAKAI: " .. path)
-                    print("📦 ARGUMEN:", ...)
-                    -- Copy path ke clipboard
-                    if setclipboard then setclipboard(path) end
-                    print("📋 Path sudah di-copy ke clipboard!")
-                    return old(self, ...)
-                end
-            end
+local hooked = {} -- tabel untuk menyimpan remote yang sudah di-hook
+
+local function hookRemote(obj)
+    if obj:IsA("RemoteEvent") and not hooked[obj] then
+        hooked[obj] = true
+        local old = obj.FireServer
+        obj.FireServer = function(self, ...)
+            local path = self:GetFullName()
+            print("🔥 REMOTE TERPAKAI: " .. path)
+            print("📦 ARGUMEN:", ...)
+            if setclipboard then setclipboard(path) end
+            print("📋 Path sudah di-copy ke clipboard!")
+            return old(self, ...)
         end
     end
 end
 
--- Hook semua RemoteEvent di seluruh game
-hookAllRemoteEvents(game)
-game.DescendantAdded:Connect(function(child)
-    if child:IsA("RemoteEvent") then
-        hookAllRemoteEvents(child)
+local function scanAll(parent)
+    for _, obj in ipairs(parent:GetDescendants()) do
+        hookRemote(obj)
     end
+end
+
+-- Scan semua yang sudah ada
+scanAll(game)
+
+-- Pantau objek baru
+game.DescendantAdded:Connect(function(child)
+    task.wait(0.05) -- biar stabil
+    hookRemote(child)
 end)
 
 print("============================================")
-print("✅ DETEKTOR AKTIF!")
+print("✅ DETEKTOR AKTIF (tanpa error)!")
 print("📌 Sekarang main game, pakai Killer Hidden.")
 print("📌 Klik tombol skill M2 / Leap / Ultimate di layar.")
 print("📌 Lihat console: akan muncul path dan argumen.")
